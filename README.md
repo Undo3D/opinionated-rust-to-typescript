@@ -1,2 +1,5 @@
 # opinionated-rust-to-typescript
-Transpile (some) Rust to TypeScript
+
+`opinionated-rust-to-typescript` is a Rust library for transpiling Rust code to
+TypeScript.
+
