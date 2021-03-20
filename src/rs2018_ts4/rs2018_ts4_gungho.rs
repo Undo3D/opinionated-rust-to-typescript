@@ -8,7 +8,7 @@
 /// ### Returns
 /// @TODO document what this function returns
 pub fn rs2018_ts4_gungho(
-    raw: &str
+    _raw: &str
 ) -> &str {
-    return raw;
+    return "const ROUGHLY_PI: Number = 3.14;";
 }
