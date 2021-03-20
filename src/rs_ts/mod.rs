@@ -1,3 +1,3 @@
-mod rs_ts;
+//! Tools for transpiling Rust code to TypeScript.
 
-pub use rs_ts::*;
+pub mod rs_ts;

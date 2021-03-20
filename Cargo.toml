@@ -1,5 +1,5 @@
 [package]
-name = "opinionated-rust-to-typescript"
+name = "opinionated_rust_to_typescript"
 version = "0.1.0"
 authors = ["Undo3D <info@undo3d.com>"]
 edition = "2018"
