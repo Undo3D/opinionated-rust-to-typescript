@@ -16,7 +16,7 @@
 /// Use `rs_edition()`, `strategy()` and `ts_major()` to set the parameters.
 /// ```
 /// # use opinionated_rust_to_typescript::transpile::config::*;
-/// # use opinionated_rust_to_typescript::transpile::transpile::*;
+/// # use opinionated_rust_to_typescript::transpile::rs_to_ts::*;
 /// assert_eq!(Config::new().rs_edition(RsEdition::Rs2015).to_string(),
 ///     "Rust edition 2015, Latest TypeScript (4), Gungho");
 /// assert_eq!(Config::new().strategy(Strategy::Cautious).to_string(),

@@ -18,7 +18,7 @@ use super::result::TranspileResult;
 /// For default configuration, just pass in `Config::new()`.
 /// ```
 /// # use opinionated_rust_to_typescript::transpile::config::Config;
-/// # use opinionated_rust_to_typescript::transpile::transpile::rs_to_ts;
+/// # use opinionated_rust_to_typescript::transpile::rs_to_ts::rs_to_ts;
 /// assert_eq!(rs_to_ts(
 ///     "const ROUGHLY_PI: f32 = 3.14;",
 ///     Config::new()).main_lines[0],
@@ -38,7 +38,7 @@ use super::result::TranspileResult;
 /// Attempting to use placeholder config values leads to an error.
 /// ```
 /// # use opinionated_rust_to_typescript::transpile::config::*;
-/// # use opinionated_rust_to_typescript::transpile::transpile::*;
+/// # use opinionated_rust_to_typescript::transpile::rs_to_ts::*;
 /// assert_eq!(rs_to_ts("Nope",
 ///     Config::new().rs_edition(RsEdition::Rs2015)).errors[0].message,
 ///     "RsEdition::Rs2015 is not implemented yet");

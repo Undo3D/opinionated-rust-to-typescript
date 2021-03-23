@@ -3,4 +3,4 @@
 pub mod config;
 pub mod error;
 pub mod result;
-pub mod transpile;
+pub mod rs_to_ts;
