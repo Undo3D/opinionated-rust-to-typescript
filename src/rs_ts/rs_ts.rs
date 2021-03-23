@@ -1,7 +1,6 @@
-//! This module contains the library’s main function, `rs_to_ts()`.
-//! 
+//! Contains the library’s main function, `rs_to_ts()`.
 
-use crate::rs2018_ts4::rs2018_ts4_gungho::rs2018_ts4_gungho;
+use super::transpile_result::TranspileResult;
 
 /// The edition of Rust that the input code is written in.
 #[derive(PartialEq)]
@@ -83,6 +82,7 @@ pub enum TsMajor {
 /// 
 /// For more information about the Builder Pattern:
 /// <https://doc.rust-lang.org/1.0.0/style/ownership/builders.html>
+/// ///
 pub struct Config {
     rs_edition: RsEdition,
     strategy: Strategy,
@@ -134,6 +134,7 @@ impl Config {
     }
 }
 
+
 /// Transpiles Rust code to TypeScript.
 /// 
 /// This is the library’s main function.
@@ -149,8 +150,10 @@ impl Config {
 /// For default configuration, just pass in `Config::new()`.
 /// ```
 /// # use opinionated_rust_to_typescript::rs_ts::rs_ts::{Config,rs_to_ts};
-/// assert_eq!(rs_to_ts("const ROUGHLY_PI: f32 = 3.14;", Config::new()),
-///                     "const ROUGHLY_PI: Number = 3.14;");
+/// assert_eq!(rs_to_ts(
+///     "const ROUGHLY_PI: f32 = 3.14;",
+///     Config::new()).main_lines[0],
+///     "const ROUGHLY_PI: Number = 3.14;");
 /// ```
 /// The Builder Pattern lets you can modify your `Config` quite easily, and you
 /// can use `to_string()` to inspect it. See the [Config] docs.
@@ -162,33 +165,41 @@ impl Config {
 /// * `RsEdition::Rs2015`
 /// * `Strategy::Cautious`
 /// * `TsMajor::Ts3`
+/// 
+/// Attempting to use placeholder config values leads to an error.
 /// ```
 /// # use opinionated_rust_to_typescript::rs_ts::rs_ts::*;
 /// assert_eq!(rs_to_ts("Nope",
-///     Config::new().rs_edition(RsEdition::Rs2015)
-/// ), "// RsEdition::Rs2015 is not implemented yet");
+///     Config::new().rs_edition(RsEdition::Rs2015)).errors[0].message,
+///     "RsEdition::Rs2015 is not implemented yet");
 /// assert_eq!(rs_to_ts("Nope",
-///     Config::new().strategy(Strategy::Cautious)
-/// ), "// Strategy::Cautious is not implemented yet");
+///     Config::new().strategy(Strategy::Cautious)).errors[0].message,
+///     "Strategy::Cautious is not implemented yet");
 /// assert_eq!(rs_to_ts("Nope",
-///     Config::new().ts_major(TsMajor::Ts3)
-/// ), "// TsMajor::Ts3 is not implemented yet");
+///     Config::new().ts_major(TsMajor::Ts3)).errors[0].message,
+///     "TsMajor::Ts3 is not implemented yet");
 /// ```
-/// Attempting to use these placeholder enum values will output TypeScript which
-/// just contains an error message inside a comment.
 /// 
 pub fn rs_to_ts(
     raw: &str,
     config: Config,
-) -> &str {
+) -> TranspileResult {
     if config.rs_edition == RsEdition::Rs2015 {
-        return "// RsEdition::Rs2015 is not implemented yet";
+        return make_not_implemented_result(
+            "RsEdition::Rs2015 is not implemented yet");
     }
     if config.strategy == Strategy::Cautious {
-        return "// Strategy::Cautious is not implemented yet";
+        return make_not_implemented_result(
+            "Strategy::Cautious is not implemented yet");
     }
     if config.ts_major == TsMajor::Ts3 {
-        return "// TsMajor::Ts3 is not implemented yet";
+        return make_not_implemented_result(
+            "TsMajor::Ts3 is not implemented yet");
     }
-    return rs2018_ts4_gungho(raw);
+    crate::rs2018_ts4::rs2018_ts4_gungho::rs2018_ts4_gungho(raw)
+}
+
+fn make_not_implemented_result(message: &'static str) -> TranspileResult {
+    TranspileResult::new()
+        .push_config_not_implemented_error(0, 0, message)
 }
