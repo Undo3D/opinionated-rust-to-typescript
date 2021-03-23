@@ -1,6 +1,6 @@
 //! Used for returning the result of transpilation.
 
-use super::transpile_error::*;
+use super::error::*;
 
 /// Used for returning the result of transpilation.
 /// 
@@ -43,9 +43,8 @@ impl TranspileResult {
         }
     }
 
-    /// Adds a [`ConfigNotImplemented`](
-    /// super::transpile_error::TranspileErrorKind) [`TranspileError`](
-    /// super::transpile_error::TranspileError) to the `errors` vector.
+    /// Adds a [`ConfigNotImplemented`](super::error::TranspileErrorKind)
+    /// [`TranspileError`](super::error::TranspileError) to the `error` vector.
     pub fn push_config_not_implemented_error(
         mut self,
         column: usize,
@@ -81,17 +80,17 @@ impl TranspileResult {
         }
         out.push_str(&self.main_section_ends.to_string());
 
-        // Add the types.
-        for type_line in &self.type_lines {
-            out.push_str(&type_line.to_string());
-        }
-
         // Add the polyfill section.
         out.push_str(&self.polyfill_section_begins.to_string());
         for polyfill_line in &self.polyfill_lines {
             out.push_str(&polyfill_line.to_string());
         }
         out.push_str(&self.polyfill_section_ends.to_string());
+
+        // Add the types.
+        for type_line in &self.type_lines {
+            out.push_str(&type_line.to_string());
+        }
 
         return out;
     }

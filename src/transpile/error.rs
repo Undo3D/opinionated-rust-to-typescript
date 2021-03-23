@@ -24,7 +24,7 @@ impl TranspileErrorKind {
 /// 
 /// Many errors may be encountered while transpiling a given Rust program. These
 /// are converted into `TranspileError`s, and recorded in the `errors` vector of
-/// the [`TranspileResult`](super::transpile_result::TranspileResult).
+/// the [`TranspileResult`](super::result::TranspileResult).
 pub struct TranspileError {
     /// The character position of the Rust code which caused the error, or 0.
     pub column: usize,

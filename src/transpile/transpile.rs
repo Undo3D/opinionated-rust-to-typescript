@@ -1,6 +1,6 @@
 //! Contains the library’s main function, `rs_to_ts()`.
 
-use super::transpile_result::TranspileResult;
+use super::result::TranspileResult;
 
 /// The edition of Rust that the input code is written in.
 #[derive(PartialEq)]
