@@ -26,7 +26,7 @@ impl TranspileErrorKind {
 /// are converted into `TranspileError`s, and recorded in the `errors` vector of
 /// the [`TranspileResult`](super::result::TranspileResult).
 pub struct TranspileError {
-    /// The character position of the Rust code which caused the error, or 0.
+    /// The character position within the line where the error occurred, or 0.
     pub column: usize,
     /// Broad category of the error.
     pub kind: TranspileErrorKind,
