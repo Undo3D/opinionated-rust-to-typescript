@@ -4,5 +4,5 @@
 //! to TypeScript.
 
 /// 
-pub mod rs_ts;
+pub mod transpile;
 pub mod rs2018_ts4;

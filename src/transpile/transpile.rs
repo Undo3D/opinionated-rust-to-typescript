@@ -53,7 +53,7 @@ pub enum TsMajor {
 /// case, `rs_to_ts()` will expect the `raw` argument to be 2018 edition Rust,
 /// and will output very readable TypeScript 4, which pollutes global scope.
 /// ```
-/// # use opinionated_rust_to_typescript::rs_ts::rs_ts::Config;
+/// # use opinionated_rust_to_typescript::transpile::transpile::Config;
 /// assert_eq!(Config::new().to_string(),
 ///     "Latest Rust edition (2018), Latest TypeScript (4), Gungho");
 /// ```
@@ -61,7 +61,7 @@ pub enum TsMajor {
 /// ### Modifying `Config`
 /// Use `rs_edition()`, `strategy()` and `ts_major()` to set the parameters.
 /// ```
-/// # use opinionated_rust_to_typescript::rs_ts::rs_ts::*;
+/// # use opinionated_rust_to_typescript::transpile::transpile::*;
 /// assert_eq!(Config::new().rs_edition(RsEdition::Rs2015).to_string(),
 ///     "Rust edition 2015, Latest TypeScript (4), Gungho");
 /// assert_eq!(Config::new().strategy(Strategy::Cautious).to_string(),
@@ -149,7 +149,7 @@ impl Config {
 /// ### The `config` argument
 /// For default configuration, just pass in `Config::new()`.
 /// ```
-/// # use opinionated_rust_to_typescript::rs_ts::rs_ts::{Config,rs_to_ts};
+/// # use opinionated_rust_to_typescript::transpile::transpile::{Config,rs_to_ts};
 /// assert_eq!(rs_to_ts(
 ///     "const ROUGHLY_PI: f32 = 3.14;",
 ///     Config::new()).main_lines[0],
@@ -168,7 +168,7 @@ impl Config {
 /// 
 /// Attempting to use placeholder config values leads to an error.
 /// ```
-/// # use opinionated_rust_to_typescript::rs_ts::rs_ts::*;
+/// # use opinionated_rust_to_typescript::transpile::transpile::*;
 /// assert_eq!(rs_to_ts("Nope",
 ///     Config::new().rs_edition(RsEdition::Rs2015)).errors[0].message,
 ///     "RsEdition::Rs2015 is not implemented yet");

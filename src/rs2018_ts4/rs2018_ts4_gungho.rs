@@ -1,6 +1,6 @@
 //! Tools for transpiling Rust 2018 to TypeScript 4 using the ‘Gungho’ strategy.
 
-use crate::rs_ts::transpile_result::TranspileResult;
+use crate::transpile::transpile_result::TranspileResult;
 
 /// Transpiles Rust 2018 code to TypeScript 4 code using the ‘Gungho’ strategy.
 /// 
