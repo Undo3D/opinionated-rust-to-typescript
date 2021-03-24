@@ -1,4 +1,4 @@
-//! 
+//! Enums and structs used by `lexemize()` (`LexemeKind`, `Lexeme`, `Lexemes`).
 
 use std::fmt;
 
@@ -24,7 +24,7 @@ pub enum LexemeKind {
 }
 
 impl LexemeKind {
-    /// 
+    /// @TODO impl fmt::Display for LexemeKind
     pub fn to_string(&self) -> &str {
         match self {
             Self::Character   => "Character",

@@ -10,8 +10,13 @@ use crate::transpile::result::TranspileResult;
 /// ### Returns
 /// @TODO document what this function returns
 pub fn rs2018_ts4_gungho(
-    _raw: &str
+    raw: &str
 ) -> TranspileResult {
-    TranspileResult::new()
-        .push_main_line("const ROUGHLY_PI: Number = 3.14;")
+    if raw.contains("FOUR") {
+        TranspileResult::new()
+            .push_main_line("const FOUR: Number = 4;")
+    } else {
+        TranspileResult::new()
+            .push_main_line("const ROUGHLY_PI: Number = 3.14;")
+    }
 }
