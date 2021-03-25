@@ -41,14 +41,8 @@ impl LexemeKind {
 
 ///
 pub struct Lexeme {
-    /// The position that the Lexeme starts, relative to the start of the line.
-    /// Zero indexed.
-    pub column: usize,
     /// Category of the Lexeme.
     pub kind: LexemeKind,
-    /// The line number that contains the Lexeme’s start position.
-    /// Zero indexed.
-    pub line_number: usize,
     /// The position that the Lexeme starts, relative to the start of `raw`.
     /// Zero indexed.
     pub pos: usize,
@@ -88,9 +82,7 @@ mod tests {
     #[test]
     fn lexeme_to_string_as_expected() {
         let lexeme = Lexeme {
-            column: 22,
             kind: LexemeKind::Character,
-            line_number: 10,
             pos: 123,
             snippet: "yup".into(),
         };

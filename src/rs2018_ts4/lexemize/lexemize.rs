@@ -8,10 +8,6 @@ use super::identify::character::identify_character;
 ///
 pub struct LexemizeResult {
     ///
-    pub end_column: usize,
-    ///
-    pub end_line_number: usize,
-    ///
     pub end_pos: usize,
     ///
     pub lexemes: Vec<Lexeme>,
@@ -42,18 +38,13 @@ impl fmt::Display for LexemizeResult {
 pub fn lexemize(
     raw: &str
 ) -> LexemizeResult {
+    // Initialise `len`, `pos`, and the output object.
     let len = raw.len();
-    // Initialise the output object.
+    let mut pos = 0;
     let mut result = LexemizeResult {
-        end_column: 0,
-        end_line_number: 0,
         end_pos: 0,
         lexemes: vec![],
     };
-    // Initialise variables which will be increased during the loop, below.
-    let mut column = 0;
-    let mut line_number = 0;
-    let mut pos = 0;
   
     // Loop until we reach the last character of the original Rust code.
     while pos < len {
@@ -61,9 +52,7 @@ pub fn lexemize(
         let next_pos = identify_character(raw, pos);
         if next_pos != pos {
             result.lexemes.push(Lexeme {
-                column,
                 kind: LexemeKind::Character,
-                line_number,
                 pos,
                 snippet: raw[pos..next_pos].to_string(),
             });
@@ -71,19 +60,10 @@ pub fn lexemize(
             continue;
         }
     
-        if &raw[pos..pos+1] == "\n" {
-            column = 0;
-            line_number += 1;
-        } else {
-            column += 1;
-        }
         pos += 1;
     }
 
-    result.end_column = column;
-    result.end_line_number = line_number;
     result.end_pos = pos;
-
     result
 }
 
@@ -95,21 +75,15 @@ mod tests {
     #[test]
     fn lexemize_result_to_string_as_expected() {
         let result = LexemizeResult {
-            end_column: 5,
-            end_line_number: 20,
             end_pos: 123,
             lexemes: vec![
                 Lexeme {
-                    column: 0,
                     kind: LexemeKind::Comment,
-                    line_number: 0,
                     pos: 0,
                     snippet: "/* This is a comment */".into(),
                 },
                 Lexeme {
-                    column: 23,
                     kind: LexemeKind::Number,
-                    line_number: 0,
                     pos: 23,
                     snippet: "44.4".into(),
                 },
