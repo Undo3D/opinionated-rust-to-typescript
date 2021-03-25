@@ -1,4 +1,4 @@
-//! Enums and structs used by `lexemize()` (`LexemeKind`, `Lexeme`, `Lexemes`).
+//! An enum and a struct used by `lexemize()`.
 
 use std::fmt;
 
@@ -40,30 +40,6 @@ impl LexemeKind {
 }
 
 ///
-pub struct Lexemes {
-    ///
-    pub end_column: usize,
-    ///
-    pub end_line_number: usize,
-    ///
-    pub end_pos: usize,
-    ///
-    pub lexemes: Vec<Lexeme>,
-}
-
-impl fmt::Display for Lexemes {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let mut str = "";
-        for lexeme in &self.lexemes {
-            fmt.write_str(str)?;
-            fmt.write_str(&lexeme.to_string())?;
-            str = "\n";
-        }
-        Ok(())
-    }
-}
-
-///
 pub struct Lexeme {
     /// The position that the Lexeme starts, relative to the start of the line.
     /// Zero indexed.
@@ -77,7 +53,7 @@ pub struct Lexeme {
     /// Zero indexed.
     pub pos: usize,
     /// 
-    pub snippet: &'static str,
+    pub snippet: String,
 }
 
 impl fmt::Display for Lexeme {
@@ -85,10 +61,10 @@ impl fmt::Display for Lexeme {
         let kind = self.kind.to_string();
         // snippet = snippet.replace("\n", "<NL>");
         write!(fmt, "{: <16} {: >4}  {}", kind, self.pos, self.snippet)
-        //                  |||
-        //                  ||+-- target width is four characters
-        //                  |+--- align right
-        //                  +---- fill with spaces
+        //                     |||
+        //                     ||+-- target width is four characters
+        //                     |+--- align right
+        //                     +---- fill with spaces
     }
 }
 
@@ -116,37 +92,8 @@ mod tests {
             kind: LexemeKind::Character,
             line_number: 10,
             pos: 123,
-            snippet: "yup",
+            snippet: "yup".into(),
         };
         assert_eq!(lexeme.to_string(), "Character         123  yup");
-    }
-
-    #[test]
-    fn lexemes_to_string_as_expected() {
-        let lexemes = Lexemes {
-            end_column: 5,
-            end_line_number: 20,
-            end_pos: 123,
-            lexemes: vec![
-                Lexeme {
-                    column: 0,
-                    kind: LexemeKind::Comment,
-                    line_number: 0,
-                    pos: 0,
-                    snippet: "/* This is a comment */",
-                },
-                Lexeme {
-                    column: 23,
-                    kind: LexemeKind::Number,
-                    line_number: 0,
-                    pos: 23,
-                    snippet: "44.4",
-                },
-            ],
-        };
-        assert_eq!(lexemes.to_string(),
-            "Comment             0  /* This is a comment */\n\
-             Number             23  44.4"
-        );
     }
 }
