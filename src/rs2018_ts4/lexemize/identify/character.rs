@@ -21,11 +21,22 @@ pub fn identify_character(raw: &str, pos: usize) -> usize {
         // ...one of Rust’s simple backslashed chars:
         "n" | "r" | "t" | "\\" | "0" | "\"" | "'" =>
             // Advance four places if the char after that is a single-quote.
-            return pos + if &raw[pos+3..pos+4] == "'" { 4 } else { 0 },
+            return pos +
+                if len >= pos + 4
+                && &raw[pos+3..pos+4] == "'"
+                { 4 } else { 0 },
+        // ...lowercase x, signifying a 7-bit char code:
+        "x" =>
+            // Advance six places if the chars after that are 0-7 and 0-9A-F.
+            return pos +
+                if len >= pos + 5
+                && raw[pos+3..pos+4].chars().all(|c| c >= '0' && c <= '7')
+                && raw[pos+4..pos+5].chars().all(|c| c.is_ascii_hexdigit())
+                && &raw[pos+5..pos+6] == "'"
+                { 6 } else { 0 },
         // Otherwise `pos` does not begin a char.
         _ => return pos
     }
-    //@TODO 7-bit character code (exactly 2 digits, up to 0x7F), eg '\x41'
     //@TODO 24-bit Unicode character code (up to 6 digits), eg '\u{7FFF}'
 }
 
@@ -44,25 +55,52 @@ mod tests {
     }
 
     #[test]
-    fn identify_character_newline() {
+    fn identify_character_backslashed() {
         let raw = " -'\\n'- ";
         assert_eq!(identify_character(&raw, 1), 1); // -'\n
         assert_eq!(identify_character(&raw, 2), 6); // '\n' advance four places
         assert_eq!(identify_character(&raw, 3), 3); // \n'-
+        assert_eq!(identify_character("'\\r'", 0), 4); // '\r'
+        assert_eq!(identify_character("'\\t' ", 0), 4); // '\t'
+        assert_eq!(identify_character("'\\\\'", 0), 4); // '\\'
+        assert_eq!(identify_character(" '\\0'", 1), 5); // '\0'
+        assert_eq!(identify_character("'\\\"'", 0), 4); // '\"'
+        assert_eq!(identify_character("'\\''", 0), 4); // '\''
     }
 
     #[test]
-    fn identify_character_backslashed_z() {
-        let raw = " -'\\z'- ";
-        assert_eq!(identify_character(&raw, 1), 1); // -'\z
-        assert_eq!(identify_character(&raw, 2), 2); // '\z' no such char
-        assert_eq!(identify_character(&raw, 3), 3); // \z'-
+    fn identify_character_7_bit_char_code() {
+        let raw = "'\\x4A'";
+        assert_eq!(identify_character(&raw, 0), 6); // '\x4A' advance to end
+        assert_eq!(identify_character(&raw, 1), 1); // \x4A'
+        assert_eq!(identify_character(&raw, 5), 5); // '
+        let raw = " - '\\x0f' - ";
+        assert_eq!(identify_character(&raw, 3), 9); // '\x0f' advance 6 places
     }
 
     #[test]
-    fn identify_character_near_end() {
-        let raw = "xy'z";
-        assert_eq!(identify_character(&raw, 1), 1); // y'z
-        assert_eq!(identify_character(&raw, 2), 2); // 'z
+    fn identify_character_not_backslashed() {
+        assert_eq!(identify_character("'\\' ", 0), 0); // '\' no char after the \
+        assert_eq!(identify_character(" '\\\\", 1), 1); // '\\ has no end quote
+        assert_eq!(identify_character("'\\q'", 0), 0); // '\q' no such backslash
+        assert_eq!(identify_character(" '\\x'", 1), 1); // '\x' would start 7-bit
+        assert_eq!(identify_character("'\\u'", 0), 0); // '\x' would start unicode
+    }
+
+    #[test]
+    fn identify_character_not_a_7_bit_char_code() {
+        assert_eq!(identify_character("'\\x3' - ", 0), 0); // '\x3' has no 2nd digit
+        assert_eq!(identify_character("'\\x3f - ", 0), 0); // '\x3f has no end quote
+        assert_eq!(identify_character("'\\x0G'", 0), 0); // '\x0G' is not valid
+        assert_eq!(identify_character("'\\x81'", 0), 0); // '\x81' is out of range
+    }
+
+    #[test]
+    fn identify_character_near_end_does_not_panic() {
+        assert_eq!(identify_character("'a", 0), 0); // 'a
+        assert_eq!(identify_character("'\\", 0), 0); // '\
+        assert_eq!(identify_character("'\\n", 0), 0); // '\n
+        assert_eq!(identify_character("'\\x", 0), 0); // '\x
+        assert_eq!(identify_character("'\\x4", 0), 0); // '\x4
     }
 }
