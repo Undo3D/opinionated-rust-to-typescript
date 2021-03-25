@@ -9,8 +9,8 @@
 /// ### Returns
 /// @TODO document what this function returns
 pub fn identify_character(raw: &str, pos: usize) -> usize {
-    let len = raw.len();
     // Avoid panicking, if there would not be enough room for a char.
+    let len = raw.len();
     if len < pos + 3 { return pos }
     // If the current char is not a single-quote, then it does not begin a char.
     if &raw[pos..pos+1] != "'" { return pos }
@@ -166,7 +166,8 @@ mod tests {
     }
 
     #[test]
-    fn identify_character_near_end_does_not_panic() {
+    fn identify_character_near_end_doesnt_panic() {
+        assert_eq!(identify("'", 0), 0); // '
         assert_eq!(identify("'a", 0), 0); // 'a
         assert_eq!(identify("'\\", 0), 0); // '\
         assert_eq!(identify("'\\n", 0), 0); // '\n
@@ -179,5 +180,13 @@ mod tests {
         assert_eq!(identify("'\\u{0}", 0), 0); // '\u{0}
         assert_eq!(identify("'\\u{30aF", 0), 0); // '\u{30aF
         assert_eq!(identify("'\\u{30Af}", 0), 0); // '\u{30Af}
+    }
+
+    #[test]
+    fn identify_character_invalid_pos_doesnt_panic() {
+        assert_eq!(identify("abc", 2), 2); // 2 is before "c", so in range
+        assert_eq!(identify("abc", 3), 3); // 3 is after "c", so incorrect
+        assert_eq!(identify("abc", 4), 4); // 4 is out of range
+        assert_eq!(identify("abc", 100), 100); // 100 is way out of range
     }
 }

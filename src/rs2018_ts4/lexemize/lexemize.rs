@@ -4,6 +4,7 @@ use std::fmt;
 
 use super::lexeme::{Lexeme,LexemeKind};
 use super::identify::character::identify_character;
+use super::identify::comment::identify_comment;
 
 ///
 pub struct LexemizeResult {
@@ -49,10 +50,23 @@ pub fn lexemize(
     // Loop until we reach the last character of the original Rust code.
     while pos < len {
 
+        // Deal with a literal char, if one begins here.
         let next_pos = identify_character(raw, pos);
         if next_pos != pos {
             result.lexemes.push(Lexeme {
                 kind: LexemeKind::Character,
+                pos,
+                snippet: raw[pos..next_pos].to_string(),
+            });
+            pos = next_pos;
+            continue;
+        }
+
+        // Deal with an inline or multiline comment, if one begins here.
+        let next_pos = identify_comment(raw, pos);
+        if next_pos != pos {
+            result.lexemes.push(Lexeme {
+                kind: LexemeKind::Comment,
                 pos,
                 snippet: raw[pos..next_pos].to_string(),
             });
@@ -114,6 +128,25 @@ mod tests {
              Character           3  '\\t'\n\
              Character           7  '\\0'\n\
              EndOfInput         11  <EOI>"
+        );
+    }
+
+    #[test]
+    fn lexemize_three_comments() {
+        let raw = "/*A*///B\n//C";
+        assert_eq!(lexemize(raw).to_string(),
+            "Lexemes found: 3\n\
+             Comment             0  /*A*/\n\
+             Comment             5  //B\n\
+             Comment             9  //C\n\
+             EndOfInput         12  <EOI>"
+            // @TODO change to:
+            // "Lexemes found: 4\n\
+            //  Comment             0  /*A*/\n\
+            //  Comment             5  //B\n\
+            //  Whitespace          8  <NL>\n\
+            //  Comment             9  //C\n\
+            //  EndOfInput         12  <EOI>"
         );
     }
 
