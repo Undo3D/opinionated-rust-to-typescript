@@ -8,6 +8,7 @@ use super::identify::comment::identify_comment;
 use super::identify::identifier::identify_identifier;
 use super::identify::number::identify_number;
 use super::identify::punctuation::identify_punctuation;
+use super::identify::string::identify_string;
 
 ///
 pub struct LexemizeResult {
@@ -86,6 +87,18 @@ pub fn lexemize(
             pos = next_pos;
             continue;
         }
+    
+        // Deal with a literal string, if one begins here.
+        let next_pos = identify_string(raw, pos);
+        if next_pos != pos {
+            result.lexemes.push(Lexeme {
+                kind: LexemeKind::String,
+                pos,
+                snippet: raw[pos..next_pos].to_string(),
+            });
+            pos = next_pos;
+            continue;
+        }
 
         // Deal with an identifier, if one begins here.
         let next_pos = identify_identifier(raw, pos);
@@ -122,7 +135,7 @@ pub fn lexemize(
             pos = next_pos;
             continue;
         }
-    
+
         pos += 1;
     }
 
@@ -244,5 +257,17 @@ mod tests {
              EndOfInput          6  <EOI>"
         );
     }
-  
+
+    #[test]
+    fn three_strings() {
+        let raw = "\"\"\"ok\"r##\"\\\"\"##";
+        assert_eq!(lexemize(raw).to_string(),
+            "Lexemes found: 3\n\
+             String              0  \"\"\n\
+             String              2  \"ok\"\n\
+             String              6  r##\"\\\"\"##\n\
+             EndOfInput         15  <EOI>"
+      );
+    }
+    
 }

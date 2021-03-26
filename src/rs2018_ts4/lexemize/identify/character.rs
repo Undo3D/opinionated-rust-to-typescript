@@ -1,6 +1,6 @@
-//! Identifies a `char` literal.
+//! Identifies a char literal, like `'A'` or `\u{03aB}`.
 
-/// Identifies a `char` literal.
+/// Identifies a char literal, like `'A'` or `\u{03aB}`.
 /// 
 /// ### Arguments
 /// * `raw` The original Rust code, assumed to conform to the 2018 edition

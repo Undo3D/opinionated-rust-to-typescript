@@ -1,6 +1,6 @@
-//! Identifies a number, like `12.34` or `0b100100`.
+//! Identifies a number literal, like `12.34` or `0b100100`.
 
-/// Identifies a number, like `12.34` or `0b100100`.
+/// Identifies a number literal, like `12.34` or `0b100100`.
 /// 
 /// ### Arguments
 /// * `raw` The original Rust code, assumed to conform to the 2018 edition

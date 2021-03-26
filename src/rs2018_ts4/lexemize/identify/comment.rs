@@ -9,16 +9,17 @@
 /// ### Returns
 /// @TODO document what this function returns
 pub fn identify_comment(raw: &str, pos: usize) -> usize {
-    // If the current char is the last in `raw`, it does not begin a comment.
+    // If the current char is the last or second-from-last in `raw`, it does not
+    // begin a comment. Also, bail out for invalid `pos`.
     let len = raw.len();
     if len < pos + 2 { return pos }
     // If the current char is not a forward slash, it does not begin a comment.
     if &raw[pos..pos+1] != "/" { return pos }
     // If the next char is:
     match &raw[pos+1..pos+2] {
-        // Also a forward slash, `pos` begins an inline comment.
+        // Also a forward slash, `pos` could begin an inline comment.
         "/" => identify_inline_comment(raw, pos, len),
-        // An asterisk, `pos` begins a multiline comment.
+        // An asterisk, `pos` could begin a multiline comment.
         "*" => identify_multiline_comment(raw, pos, len),
         // Anything else, `pos` does not begin a comment.
         _ => pos,
@@ -42,7 +43,7 @@ fn identify_multiline_comment(raw: &str, pos: usize, len: usize) -> usize {
     // Track how deep into a nested multiline comment we are.
     let mut depth = 0;
     // Slightly hacky way to to skip forward while looping.
-    let mut i = pos+2;
+    let mut i = pos + 2;
     // Step through each char, from `pos` to the end of the raw input code.
     // `len-1` saves a nanosecond or two, but also prevents `raw[i..i+1]` from
     // panicking when `raw` ends in an asterisk.
