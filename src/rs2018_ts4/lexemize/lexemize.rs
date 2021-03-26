@@ -7,6 +7,7 @@ use super::identify::character::identify_character;
 use super::identify::comment::identify_comment;
 use super::identify::identifier::identify_identifier;
 use super::identify::number::identify_number;
+use super::identify::punctuation::identify_punctuation;
 
 ///
 pub struct LexemizeResult {
@@ -98,11 +99,23 @@ pub fn lexemize(
             continue;
         }
 
-        // Deal with a number, if one begins here.
+        // Deal with a literal number, if one begins here.
         let next_pos = identify_number(raw, pos);
         if next_pos != pos {
             result.lexemes.push(Lexeme {
                 kind: LexemeKind::Number,
+                pos,
+                snippet: raw[pos..next_pos].to_string(),
+            });
+            pos = next_pos;
+            continue;
+        }
+    
+        // Deal with punctuation, if a sequence of 1, 2 or 3 begins here.
+        let next_pos = identify_punctuation(raw, pos);
+        if next_pos != pos {
+            result.lexemes.push(Lexeme {
+                kind: LexemeKind::Punctuation,
                 pos,
                 snippet: raw[pos..next_pos].to_string(),
             });
@@ -190,19 +203,13 @@ mod tests {
     fn three_identifiers() {
         let raw = "abc;_D,__12";
         assert_eq!(lexemize(raw).to_string(),
-            "Lexemes found: 3\n\
+            "Lexemes found: 5\n\
              Identifier          0  abc\n\
+             Punctuation         3  ;\n\
              Identifier          4  _D\n\
+             Punctuation         6  ,\n\
              Identifier          7  __12\n\
              EndOfInput         11  <EOI>"
-            // @TODO change to:
-            // "Lexemes found: 6\n\
-            //  Identifier          0  abc\n\
-            //  Punctuation         3  ;\n\
-            //  Identifier          4  _D\n\
-            //  Punctuation         6  ,\n\
-            //  Identifier          7  __12\n\
-            //  EndOfInput         11  <EOI>\n"
         );
     }
 
@@ -225,5 +232,17 @@ mod tests {
             //  EndOfInput         35  <EOI>\n"
         );
     }
-    
+
+    #[test]
+    fn three_punctuations() {
+        let raw = ";*=>>=";
+        assert_eq!(lexemize(raw).to_string(),
+            "Lexemes found: 3\n\
+             Punctuation         0  ;\n\
+             Punctuation         1  *=\n\
+             Punctuation         3  >>=\n\
+             EndOfInput          6  <EOI>"
+        );
+    }
+  
 }
