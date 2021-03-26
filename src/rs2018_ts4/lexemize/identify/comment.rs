@@ -39,20 +39,40 @@ fn identify_inline_comment(raw: &str, pos: usize, len: usize) -> usize {
 }
   
 fn identify_multiline_comment(raw: &str, pos: usize, len: usize) -> usize {
+    // Track how deep into a nested multiline comment we are.
+    let mut depth = 0;
+    // Slightly hacky way to to skip forward while looping.
+    let mut i = pos+2;
     // Step through each char, from `pos` to the end of the raw input code.
     // `len-1` saves a nanosecond or two, but also prevents `raw[i..i+1]` from
     // panicking when `raw` ends in an asterisk.
-    for i in pos+2..len-1 {
+    while i < len-1 {
         // If this char is an asterisk, and the next is a forward slash:
         if &raw[i..i+1] == "*" && &raw[i+1..i+2] == "/" {
-            // Advance to the end of the "*/".
-            return i + 2
+            // If the depth is zero (so we are at the outermost nesting level):
+            if depth == 0 {
+                // Advance to the end of the "*/".
+                return i + 2
+            // Otherwise we are some way inside a nested multiline comment:
+            } else {
+                // Decrement the nesting-depth.
+                depth -= 1;
+                // Skip the forward slash (avoids confusion in "/*/* */* */").
+                i += 1;
+            }
+        // If this char is a forward slash, and the next is an asterisk:
+        } else if &raw[i..i+1] == "/" && &raw[i+1..i+2] == "*" {
+            // Increment the nesting-depth.
+            depth += 1;
+            // Skip the asterisk (avoids confusion in "/*/*/ */ */").
+            i += 1;
         }
+        // Step forward.
+        i += 1;
     }
-    // "*/" was not found, so this is not a multiline comment.
+    // The outermost "*/" was not found, so this is not a multiline comment.
     pos
 }
-  
 
 
 #[cfg(test)]
@@ -91,7 +111,51 @@ mod tests {
         assert_eq!(identify(raw, 3), 10); // /*ok<NL>*/ adv. seven places
         assert_eq!(identify(raw, 4), 4);  // *ok<NL>*/z
     }
-  
+
+    #[test]
+    fn identify_comment_multiline_doc() {
+        assert_eq!(identify("/** Here's a doc */", 0), 19);
+        assert_eq!(identify("/**A/*A*/*/", 0), 11);
+        // assert_eq!(identify("/**A/*A'*/*/", 0), 12);
+    }
+
+    #[test]
+    fn identify_comment_multiline_nested_basic() {
+        let raw = "/* outer /* inner */ outer */";
+        assert_eq!(identify(raw, 0), 29); // does not end after ...inner */
+        assert_eq!(identify(raw, 9), 20); // just catched /* inner */
+    }
+
+    #[test]
+    fn identify_comment_multiline_nested_complex() {
+        let raw = "pre-/* 0 /* 1 */ 0 /* 2 /* 3 */ 2 */ 0 */-post";
+        assert_eq!(identify(raw, 3), 3);  // -/* 0
+        assert_eq!(identify(raw, 4), 41); // /* 0 ... 0 */
+        assert_eq!(identify(raw, 5), 5);  // * 0
+        assert_eq!(identify(raw, 9), 16); // /* 1 */
+        assert_eq!(identify(raw, 19), 36); // /* 2 /* 3 */ 2 */
+    }
+
+    #[test]
+    fn identify_comment_multiline_nested_edge_cases() {
+        // These edge cases are dealt with correctly by stepping forward an
+        // extra position after finding a nested "/*" or "*/".
+        let raw = "/*/*/ */ */";
+        assert_eq!(identify(raw, 0), 11); // /*/*/ */ */ edge case is the 3rd /
+        assert_eq!(identify(raw, 1), 1);  // */*/ */ */
+        assert_eq!(identify(raw, 2), 8);  // /*/ */
+        let raw = "/*/* */* */";
+        assert_eq!(identify(raw, 0), 11); // /*/* */* */ edge case is the 4th *
+        assert_eq!(identify(raw, 1), 1);  // */* */* */
+        assert_eq!(identify(raw, 2), 7);  // /* */
+    }
+
+    #[test]
+    fn identify_comment_multiline_nested_invalid() {
+        let raw = "/* outer /* inner */ missing trailing slash *";
+        assert_eq!(identify(raw, 0), 0);
+    }
+
     #[test]
     fn identify_comment_multiline_to_end() {
         let raw = "abc/*ok*/";
@@ -103,13 +167,13 @@ mod tests {
     #[test]
     fn identify_comment_minimal() {
         let raw = "//";
-        assert_eq!(identify(raw, 0), 2); // //
-        assert_eq!(identify(raw, 1), 1); // /
+        assert_eq!(identify(raw, 0), 2);  // //
+        assert_eq!(identify(raw, 1), 1);  // /
         let raw = "/**/";
-        assert_eq!(identify(raw, 0), 4); // /**/
-        assert_eq!(identify(raw, 1), 1); // **/
+        assert_eq!(identify(raw, 0), 4);  // /**/
+        assert_eq!(identify(raw, 1), 1);  // **/
     }
-  
+
     #[test]
     fn identify_comment_multiline_without_end() {
         let raw = "abc/*nope*";

@@ -133,13 +133,13 @@ mod tests {
 
     #[test]
     fn lexemize_three_comments() {
-        let raw = "/*A*///B\n//C";
+        let raw = "/**A/*A'*/*///B\n//C";
         assert_eq!(lexemize(raw).to_string(),
             "Lexemes found: 3\n\
-             Comment             0  /*A*/\n\
-             Comment             5  //B\n\
-             Comment             9  //C\n\
-             EndOfInput         12  <EOI>"
+             Comment             0  /**A/*A'*/*/\n\
+             Comment            12  //B\n\
+             Comment            16  //C\n\
+             EndOfInput         19  <EOI>"
             // @TODO change to:
             // "Lexemes found: 4\n\
             //  Comment             0  /*A*/\n\
