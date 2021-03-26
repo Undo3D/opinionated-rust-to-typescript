@@ -9,6 +9,7 @@ use super::identify::identifier::identify_identifier;
 use super::identify::number::identify_number;
 use super::identify::punctuation::identify_punctuation;
 use super::identify::string::identify_string;
+use super::identify::whitespace::identify_whitespace;
 
 ///
 pub struct LexemizeResult {
@@ -136,6 +137,18 @@ pub fn lexemize(
             continue;
         }
 
+        // Deal with whitespace, if whitespace begins here.
+        let next_pos = identify_whitespace(raw, pos);
+        if next_pos != pos {
+            result.lexemes.push(Lexeme {
+                kind: LexemeKind::Whitespace,
+                pos,
+                snippet: raw[pos..next_pos].to_string(),
+            });
+            pos = next_pos;
+            continue;
+        }
+    
         pos += 1;
     }
 
@@ -197,18 +210,12 @@ mod tests {
     fn lexemize_three_comments() {
         let raw = "/**A/*A'*/*///B\n//C";
         assert_eq!(lexemize(raw).to_string(),
-            "Lexemes found: 3\n\
+            "Lexemes found: 4\n\
              Comment             0  /**A/*A'*/*/\n\
              Comment            12  //B\n\
+             Whitespace         15  <NL>\n\
              Comment            16  //C\n\
              EndOfInput         19  <EOI>"
-            // @TODO change to:
-            // "Lexemes found: 4\n\
-            //  Comment             0  /*A*/\n\
-            //  Comment             5  //B\n\
-            //  Whitespace          8  <NL>\n\
-            //  Comment             9  //C\n\
-            //  EndOfInput         12  <EOI>"
         );
     }
 
@@ -230,19 +237,13 @@ mod tests {
     fn three_numbers() {
         let raw = "0b1001_0011 0x__01aB__ 1_2.3_4E+_5_";
         assert_eq!(lexemize(raw).to_string(),
-            "Lexemes found: 3\n\
+            "Lexemes found: 5\n\
              Number              0  0b1001_0011\n\
+             Whitespace         11   \n\
              Number             12  0x__01aB__\n\
+             Whitespace         22   \n\
              Number             23  1_2.3_4E+_5_\n\
              EndOfInput         35  <EOI>"
-            // @TODO change to:
-            // "Lexemes found: 6\n\
-            //  Number              0  0b1001_0011\n\
-            //  Whitespace         11   \n\
-            //  Number             12  0x__01aB__\n\
-            //  Whitespace         22   \n\
-            //  Number             23  1_2.3_4E+_5_\n\
-            //  EndOfInput         35  <EOI>\n"
         );
     }
 
@@ -269,5 +270,19 @@ mod tests {
              EndOfInput         15  <EOI>"
       );
     }
-    
+
+    #[test]
+    fn three_whitespace() {
+        let raw = "\t\ta \n\nb\r ";
+        assert_eq!(lexemize(raw).to_string(),
+            "Lexemes found: 5\n\
+             Whitespace          0  \t\t\n\
+             Identifier          2  a\n\
+             Whitespace          3   <NL><NL>\n\
+             Identifier          6  b\n\
+             Whitespace          7  \r \n\
+             EndOfInput          9  <EOI>"
+      );
+    }
+
 }

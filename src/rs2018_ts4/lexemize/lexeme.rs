@@ -53,8 +53,8 @@ pub struct Lexeme {
 impl fmt::Display for Lexeme {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let kind = self.kind.to_string();
-        // snippet = snippet.replace("\n", "<NL>");
-        write!(fmt, "{: <16} {: >4}  {}", kind, self.pos, self.snippet)
+        let snippet = self.snippet.replace("\n", "<NL>");
+        write!(fmt, "{: <16} {: >4}  {}", kind, self.pos, snippet)
         //                     |||
         //                     ||+-- target width is four characters
         //                     |+--- align right
