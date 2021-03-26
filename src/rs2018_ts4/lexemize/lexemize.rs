@@ -5,6 +5,8 @@ use std::fmt;
 use super::lexeme::{Lexeme,LexemeKind};
 use super::identify::character::identify_character;
 use super::identify::comment::identify_comment;
+use super::identify::identifier::identify_identifier;
+use super::identify::number::identify_number;
 
 ///
 pub struct LexemizeResult {
@@ -29,7 +31,17 @@ impl fmt::Display for LexemizeResult {
     }
 }
 
-/// Transforms a Rust 2018 program into lexemes.
+/// Transforms a Rust 2018 program into `Lexemes`.
+/// 
+/// The primary purpose of `lexemize()` is to quickly divide Rust code into
+/// three basic sections — comments, strings, and everything else.
+/// 
+/// The ‘everything else’ section is then divided into literals, punctuation,
+/// whitespace and identifiers. Anything left over is marked as ‘xtraneous’.
+/// 
+/// Any input string can be lexemized, so this function never returns any kind
+/// of error. Checking `raw` for semantic correctness should be done later on,
+/// during tokenization and parsing.
 /// 
 /// ### Arguments
 /// * `raw` The original Rust code, assumed to conform to the 2018 edition
@@ -67,6 +79,30 @@ pub fn lexemize(
         if next_pos != pos {
             result.lexemes.push(Lexeme {
                 kind: LexemeKind::Comment,
+                pos,
+                snippet: raw[pos..next_pos].to_string(),
+            });
+            pos = next_pos;
+            continue;
+        }
+
+        // Deal with an identifier, if one begins here.
+        let next_pos = identify_identifier(raw, pos);
+        if next_pos != pos {
+            result.lexemes.push(Lexeme {
+                kind: LexemeKind::Identifier,
+                pos,
+                snippet: raw[pos..next_pos].to_string(),
+            });
+            pos = next_pos;
+            continue;
+        }
+
+        // Deal with a number, if one begins here.
+        let next_pos = identify_number(raw, pos);
+        if next_pos != pos {
+            result.lexemes.push(Lexeme {
+                kind: LexemeKind::Number,
                 pos,
                 snippet: raw[pos..next_pos].to_string(),
             });
@@ -150,4 +186,44 @@ mod tests {
         );
     }
 
+    #[test]
+    fn three_identifiers() {
+        let raw = "abc;_D,__12";
+        assert_eq!(lexemize(raw).to_string(),
+            "Lexemes found: 3\n\
+             Identifier          0  abc\n\
+             Identifier          4  _D\n\
+             Identifier          7  __12\n\
+             EndOfInput         11  <EOI>"
+            // @TODO change to:
+            // "Lexemes found: 6\n\
+            //  Identifier          0  abc\n\
+            //  Punctuation         3  ;\n\
+            //  Identifier          4  _D\n\
+            //  Punctuation         6  ,\n\
+            //  Identifier          7  __12\n\
+            //  EndOfInput         11  <EOI>\n"
+        );
+    }
+
+    #[test]
+    fn three_numbers() {
+        let raw = "0b1001_0011 0x__01aB__ 1_2.3_4E+_5_";
+        assert_eq!(lexemize(raw).to_string(),
+            "Lexemes found: 3\n\
+             Number              0  0b1001_0011\n\
+             Number             12  0x__01aB__\n\
+             Number             23  1_2.3_4E+_5_\n\
+             EndOfInput         35  <EOI>"
+            // @TODO change to:
+            // "Lexemes found: 6\n\
+            //  Number              0  0b1001_0011\n\
+            //  Whitespace         11   \n\
+            //  Number             12  0x__01aB__\n\
+            //  Whitespace         22   \n\
+            //  Number             23  1_2.3_4E+_5_\n\
+            //  EndOfInput         35  <EOI>\n"
+        );
+    }
+    
 }

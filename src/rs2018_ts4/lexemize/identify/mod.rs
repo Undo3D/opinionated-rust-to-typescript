@@ -2,3 +2,5 @@
 
 pub mod character;
 pub mod comment;
+pub mod identifier;
+pub mod number;
