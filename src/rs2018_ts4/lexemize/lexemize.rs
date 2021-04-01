@@ -3,13 +3,13 @@
 use std::fmt;
 
 use super::lexeme::{Lexeme,LexemeKind};
-use super::identify::character::identify_character;
-use super::identify::comment::identify_comment;
-use super::identify::identifier::identify_identifier;
-use super::identify::number::identify_number;
-use super::identify::punctuation::identify_punctuation;
-use super::identify::string::identify_string;
-use super::identify::whitespace::identify_whitespace;
+use super::detect::character::detect_character;
+use super::detect::comment::detect_comment;
+use super::detect::identifier::detect_identifier;
+use super::detect::number::detect_number;
+use super::detect::punctuation::detect_punctuation;
+use super::detect::string::detect_string;
+use super::detect::whitespace::detect_whitespace;
 
 ///
 pub struct LexemizeResult {
@@ -34,21 +34,21 @@ impl fmt::Display for LexemizeResult {
     }
 }
 
-/// An array which associates the `identifier_*()` functions with `LexemeKind`s.
+/// An array which associates the `detect_*()` functions with `LexemeKind`s.
 /// 
-/// Note that a `String` can start with an `"r"` character, so 
-/// `identify_string()` is placed before `identify_identifier()`.
-pub const IDENTIFIERS_AND_KINDS: [(
+/// Note that a `String` can start with an `"r"` character, so `detect_string()`
+/// is placed before `detect_identifier()`.
+pub const DETECTORS_AND_KINDS: [(
     fn (&str, usize) -> usize,
     LexemeKind,
 ); 7] = [
-    (identify_character,   LexemeKind::Character),
-    (identify_comment,     LexemeKind::Comment),
-    (identify_string,      LexemeKind::String),
-    (identify_identifier,  LexemeKind::Identifier),
-    (identify_number,      LexemeKind::Number),
-    (identify_punctuation, LexemeKind::Punctuation),
-    (identify_whitespace,  LexemeKind::Whitespace),
+    (detect_character,   LexemeKind::Character),
+    (detect_comment,     LexemeKind::Comment),
+    (detect_string,      LexemeKind::String),
+    (detect_identifier,  LexemeKind::Identifier),
+    (detect_number,      LexemeKind::Number),
+    (detect_punctuation, LexemeKind::Punctuation),
+    (detect_whitespace,  LexemeKind::Whitespace),
 ];
 
 /// Transforms a Rust 2018 program into a vector of `Lexemes`.
@@ -82,23 +82,23 @@ pub fn lexemize(
 
     // Loop until we reach the last character of the input string.
     'outer: while pos < len {
-        // Only try to identify a Lexeme if this is the start of a character.
+        // Only try to detect a Lexeme if this is the start of a character.
         if raw.is_char_boundary(pos) {
-            // Step through the array of `identifier_*()` functions, and their
+            // Step through the array of `detect_*()` functions, and their
             // associated `LexemeKinds`.
-            for identifier_and_kind in IDENTIFIERS_AND_KINDS.iter() {
+            for (detector, kind) in DETECTORS_AND_KINDS.iter() {
                 // Possibly add one or two Lexemes to `result`.
-                let next_pos = identify(
-                    identifier_and_kind.0,
-                    identifier_and_kind.1,
+                let next_pos = detect(
+                    *detector,
+                    *kind,
                     raw,
                     pos,
                     xtra_pos,
                     &mut result
                 );
-                // If a Lexeme has been identified at this character position,
-                // `identify()` will return the character position of the end
-                // of that Lexeme.
+                // If a Lexeme has been detected at this character position,
+                // `detect()` will have returned the character position of the
+                // end of that Lexeme.
                 if next_pos != pos {
                     pos = next_pos;
                     xtra_pos = pos;
@@ -106,7 +106,7 @@ pub fn lexemize(
                 }
             }
             // Anything else is an unidentifiable character, which will be
-            // picked up by the `xtra_pos != pos` conditional in `identify()`.
+            // picked up by the `xtra_pos != pos` conditional in `detect()`.
         }
 
         // Step forward one byte.
@@ -127,17 +127,17 @@ pub fn lexemize(
     result
 }
 
-fn identify(
-    identifier: fn (&str, usize) -> usize,
+fn detect(
+    detector: fn (&str, usize) -> usize,
     kind: LexemeKind,
     raw: &str,
     pos: usize,
     xtra_pos: usize,
     result: &mut LexemizeResult,
 ) -> usize {
-    // If the passed-in `identifier()` does not identify the Lexeme, it will 
-    // return the same char-position as `pos`. In that case, just return `pos`.
-    let next_pos = identifier(raw, pos);
+    // If the passed-in `detector()` does not detect the Lexeme, it will return
+    // the same char-position as `pos`. In that case, just return `pos`.
+    let next_pos = detector(raw, pos);
     if next_pos == pos { return pos }
 
     // If any ‘Xtraneous’ characters precede this Lexeme, record them before
