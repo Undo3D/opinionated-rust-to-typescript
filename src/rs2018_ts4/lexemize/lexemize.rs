@@ -34,7 +34,24 @@ impl fmt::Display for LexemizeResult {
     }
 }
 
-/// Transforms a Rust 2018 program into `Lexemes`.
+/// An array which associates the `identifier_*()` functions with `LexemeKind`s.
+/// 
+/// Note that a `String` can start with an `"r"` character, so 
+/// `identify_string()` is placed before `identify_identifier()`.
+pub const IDENTIFIERS_AND_KINDS: [(
+    fn (&str, usize) -> usize,
+    LexemeKind,
+); 7] = [
+    (identify_character,   LexemeKind::Character),
+    (identify_comment,     LexemeKind::Comment),
+    (identify_string,      LexemeKind::String),
+    (identify_identifier,  LexemeKind::Identifier),
+    (identify_number,      LexemeKind::Number),
+    (identify_punctuation, LexemeKind::Punctuation),
+    (identify_whitespace,  LexemeKind::Whitespace),
+];
+
+/// Transforms a Rust 2018 program into a vector of `Lexemes`.
 /// 
 /// The primary purpose of `lexemize()` is to quickly divide Rust code into
 /// three basic sections — comments, strings, and everything else.
@@ -64,157 +81,40 @@ pub fn lexemize(
     };
 
     // Loop until we reach the last character of the input string.
-    while pos < len {
+    'outer: while pos < len {
+        // Only try to identify a Lexeme if this is the start of a character.
         if raw.is_char_boundary(pos) {
-
-            // Deal with a literal char, if one begins here.
-            let next_pos = identify_character(raw, pos);
-            if next_pos != pos {
-                if xtra_pos != pos {
-                    result.lexemes.push(Lexeme {
-                        kind: LexemeKind::Xtraneous,
-                        pos: xtra_pos,
-                        snippet: raw[xtra_pos..pos].to_string(),
-                    });
-                }
-                result.lexemes.push(Lexeme {
-                    kind: LexemeKind::Character,
+            // Step through the array of `identifier_*()` functions, and their
+            // associated `LexemeKinds`.
+            for identifier_and_kind in IDENTIFIERS_AND_KINDS.iter() {
+                // Possibly add one or two Lexemes to `result`.
+                let next_pos = identify(
+                    identifier_and_kind.0,
+                    identifier_and_kind.1,
+                    raw,
                     pos,
-                    snippet: raw[pos..next_pos].to_string(),
-                });
-                pos = next_pos;
-                xtra_pos = pos;
-                continue;
-            }
-
-            // Deal with an inline or multiline comment, if one begins here.
-            let next_pos = identify_comment(raw, pos);
-            if next_pos != pos {
-                if xtra_pos != pos {
-                    result.lexemes.push(Lexeme {
-                        kind: LexemeKind::Xtraneous,
-                        pos: xtra_pos,
-                        snippet: raw[xtra_pos..pos].to_string(),
-                    });
+                    xtra_pos,
+                    &mut result
+                );
+                // If a Lexeme has been identified at this character position,
+                // `identify()` will return the character position of the end
+                // of that Lexeme.
+                if next_pos != pos {
+                    pos = next_pos;
+                    xtra_pos = pos;
+                    continue 'outer;
                 }
-                result.lexemes.push(Lexeme {
-                    kind: LexemeKind::Comment,
-                    pos,
-                    snippet: raw[pos..next_pos].to_string(),
-                });
-                pos = next_pos;
-                xtra_pos = pos;
-                continue;
             }
-        
-            // Deal with a literal string, if one begins here.
-            let next_pos = identify_string(raw, pos);
-            if next_pos != pos {
-                if xtra_pos != pos {
-                    result.lexemes.push(Lexeme {
-                        kind: LexemeKind::Xtraneous,
-                        pos: xtra_pos,
-                        snippet: raw[xtra_pos..pos].to_string(),
-                    });
-                }
-                result.lexemes.push(Lexeme {
-                    kind: LexemeKind::String,
-                    pos,
-                    snippet: raw[pos..next_pos].to_string(),
-                });
-                pos = next_pos;
-                xtra_pos = pos;
-                continue;
-            }
-
-            // Deal with an identifier, if one begins here.
-            let next_pos = identify_identifier(raw, pos);
-            if next_pos != pos {
-                if xtra_pos != pos {
-                    result.lexemes.push(Lexeme {
-                        kind: LexemeKind::Xtraneous,
-                        pos: xtra_pos,
-                        snippet: raw[xtra_pos..pos].to_string(),
-                    });
-                }
-                result.lexemes.push(Lexeme {
-                    kind: LexemeKind::Identifier,
-                    pos,
-                    snippet: raw[pos..next_pos].to_string(),
-                });
-                pos = next_pos;
-                xtra_pos = pos;
-                continue;
-            }
-
-            // Deal with a literal number, if one begins here.
-            let next_pos = identify_number(raw, pos);
-            if next_pos != pos {
-                if xtra_pos != pos {
-                    result.lexemes.push(Lexeme {
-                        kind: LexemeKind::Xtraneous,
-                        pos: xtra_pos,
-                        snippet: raw[xtra_pos..pos].to_string(),
-                    });
-                }
-                result.lexemes.push(Lexeme {
-                    kind: LexemeKind::Number,
-                    pos,
-                    snippet: raw[pos..next_pos].to_string(),
-                });
-                pos = next_pos;
-                xtra_pos = pos;
-                continue;
-            }
-        
-            // Deal with punctuation, if a sequence of 1, 2 or 3 begins here.
-            let next_pos = identify_punctuation(raw, pos);
-            if next_pos != pos {
-                if xtra_pos != pos {
-                    result.lexemes.push(Lexeme {
-                        kind: LexemeKind::Xtraneous,
-                        pos: xtra_pos,
-                        snippet: raw[xtra_pos..pos].to_string(),
-                    });
-                }
-                result.lexemes.push(Lexeme {
-                    kind: LexemeKind::Punctuation,
-                    pos,
-                    snippet: raw[pos..next_pos].to_string(),
-                });
-                pos = next_pos;
-                xtra_pos = pos;
-                continue;
-            }
-
-            // Deal with whitespace, if whitespace begins here.
-            let next_pos = identify_whitespace(raw, pos);
-            if next_pos != pos {
-                if xtra_pos != pos {
-                    result.lexemes.push(Lexeme {
-                        kind: LexemeKind::Xtraneous,
-                        pos: xtra_pos,
-                        snippet: raw[xtra_pos..pos].to_string(),
-                    });
-                }
-                result.lexemes.push(Lexeme {
-                    kind: LexemeKind::Whitespace,
-                    pos,
-                    snippet: raw[pos..next_pos].to_string(),
-                });
-                pos = next_pos;
-                xtra_pos = pos;
-                continue;
-            }
-
-            // Anything else is an xtraneous character, which will be picked up
-            // by the `xtra_pos != pos` conditional.
+            // Anything else is an unidentifiable character, which will be
+            // picked up by the `xtra_pos != pos` conditional in `identify()`.
         }
 
         // Step forward one byte.
         pos += 1;
     }
 
+    // If there are unidentifiable characters at the end of `raw`, add a final 
+    // `Xtraneous` Lexeme before returning `result`.
     if xtra_pos != pos {
         result.lexemes.push(Lexeme {
             kind: LexemeKind::Xtraneous,
@@ -226,6 +126,40 @@ pub fn lexemize(
     result.end_pos = pos;
     result
 }
+
+fn identify(
+    identifier: fn (&str, usize) -> usize,
+    kind: LexemeKind,
+    raw: &str,
+    pos: usize,
+    xtra_pos: usize,
+    result: &mut LexemizeResult,
+) -> usize {
+    // If the passed-in `identifier()` does not identify the Lexeme, it will 
+    // return the same char-position as `pos`. In that case, just return `pos`.
+    let next_pos = identifier(raw, pos);
+    if next_pos == pos { return pos }
+
+    // If any ‘Xtraneous’ characters precede this Lexeme, record them before
+    // recording this Lexeme.
+    if xtra_pos != pos {
+        result.lexemes.push(Lexeme {
+            kind: LexemeKind::Xtraneous,
+            pos: xtra_pos,
+            snippet: raw[xtra_pos..pos].to_string(),
+        });
+    }
+    result.lexemes.push(Lexeme {
+        kind,
+        pos,
+        snippet: raw[pos..next_pos].to_string(),
+    });
+
+    // Tell `lexemize()` the character position of the end of the Lexeme.
+    next_pos
+}
+
+
 
 #[cfg(test)]
 mod tests {

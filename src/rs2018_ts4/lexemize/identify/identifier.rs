@@ -2,6 +2,8 @@
 
 /// Identifies an identifier, like `String` or `foo_bar`.
 /// 
+/// @TODO raw identifiers, which have the `r#` prefix
+/// 
 /// ### Arguments
 /// * `raw` The original Rust code, assumed to conform to the 2018 edition
 /// * `pos` The character position in `raw` to look at
