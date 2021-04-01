@@ -2,19 +2,24 @@
 
 /// Identifies a string literal, like `"Hello \"Rust\""` or `r#"Hello "Rust""#`.
 /// 
+/// @TODO `b` prefix, eg `b"Just the bytes"`
+/// @TODO `br` prefix, eg `br#"Just "the" bytes"#`
+/// 
 /// ### Arguments
 /// * `raw` The original Rust code, assumed to conform to the 2018 edition
 /// * `pos` The character position in `raw` to look at
 /// 
 /// ### Returns
-/// @TODO document what this function returns
+/// If `pos` begins a valid looking string literal, `identify_string()` returns
+/// the character position after the closing single quote (or hash).  
+/// Otherwise, `identify_string()` just returns the `pos` argument.
 pub fn identify_string(raw: &str, pos: usize) -> usize {
     // If the current char is the last in `raw`, it does not begin a string.
     let len = raw.len();
     if len < pos + 1 { return pos }
 
     // If the current char is:
-    match &raw[pos..pos+1] {
+    match get_aot(raw, pos) {
         // A double quote, `pos` could begin a regular string.
         "\"" => identify_regular_string(raw, pos, len),
         // A lowercase "r", `pos` could begin a raw string.
@@ -24,25 +29,33 @@ pub fn identify_string(raw: &str, pos: usize) -> usize {
     }
 }
 
+// Returns the ascii character at a position, or tilde if invalid or non-ascii.
+fn get_aot(raw: &str, pos: usize) -> &str { raw.get(pos..pos+1).unwrap_or("~") }
+
 fn identify_regular_string(raw: &str, pos: usize, len: usize) -> usize {
     // Slightly hacky way to to skip forward while looping.
     let mut i = pos + 1;
     // Step through each char, from `pos` to the end of the raw input code.
-    // `len-1` saves a nanosecond or two, but also prevents `raw[i..i+1]` from
-    // panicking at the end of the input.
-    while i < len-1 {
-        let c = &raw[i..i+1];
+    while i < len {
+        // Get this character, even if it’s non-ascii.
+        let mut j = i + 1;
+        while !raw.is_char_boundary(j) { j += 1 }
+        let c = &raw[i..j];
         // If this char is a backslash:
         if c == "\\" {
-            // Ignore the next char.
-            i += 1
+            // If the backlash ends the input code, this is not a string.
+            if j == len { return pos }
+            // Ignore the next character, even if it’s non-ascii.
+            // Treat "\€" as a string Lexeme, even though it’s invalid code.
+            j += 1;
+            while !raw.is_char_boundary(j) { j += 1 }
         // If this char is a double quote:
         } else if c == "\"" {
             // Advance to the end of the double quote.
-            return i + 1
+            return j
         }
-        // Step forward.
-        i += 1;
+        // Step forward, ready for the next iteration.
+        i = j;
     }
     // The closing double quote was not found, so this is not a string.
     pos
@@ -50,6 +63,8 @@ fn identify_regular_string(raw: &str, pos: usize, len: usize) -> usize {
 
 // doc.rust-lang.org/reference/tokens.html#raw-string-literals
 fn identify_raw_string(raw: &str, pos: usize, len: usize) -> usize {
+    // If there are less than two chars after the "r", it cannot begin a string.
+    if len < pos + 3 { return pos }
     // Slightly hacky way to to skip forward while looping.
     let mut i = pos + 1;
     // Keep track of the number of leading hashes.
@@ -62,7 +77,10 @@ fn identify_raw_string(raw: &str, pos: usize, len: usize) -> usize {
     // `len-1` saves a nanosecond or two, but also prevents `raw[i..i+1]` from
     // panicking at the end of the input.
     while i < len {
-        let c = &raw[i..i+1];
+        // Get this character, even if it’s non-ascii.
+        let mut j = i + 1;
+        while !raw.is_char_boundary(j) { j += 1 }
+        let c = &raw[i..j];
 
         // If we have not found the opening double quote yet:
         if ! found_opening_dq {
@@ -81,11 +99,16 @@ fn identify_raw_string(raw: &str, pos: usize, len: usize) -> usize {
         } else if found_closing_dq {
             // If we are not expecting any more hashes:
             if hashes == 0 {
-                // This is the end of a valid raw string.
-                return i
+                // Valid raw string, advance to the end of the double quote.
+                return j
             // Otherwise, if this is a trailing hash, decrement the tally.
             } else if c == "#" {
-                hashes -= 1
+                hashes -= 1;
+                // If we are not expecting any more hashes:
+                if hashes == 0 {
+                    // Valid raw string, advance to the end of the double quote.
+                    return j
+                }
             // Anything else is not valid for the end of a raw string.
             } else {
                 return pos
@@ -95,22 +118,31 @@ fn identify_raw_string(raw: &str, pos: usize, len: usize) -> usize {
         } else {
             // If this char is a backslash:
             if c == "\\" {
-                // Ignore the next char.
-                i += 1
+                // If the backlash ends the input code, this is not a string.
+                if j == len { return pos }
+                // Ignore the next character, even if it’s non-ascii.
+                // Treat "\€" as a string Lexeme, even though it’s invalid code.
+                j += 1;
+                while !raw.is_char_boundary(j) { j += 1 }
             // If this char is a double quote:
             } else if c == "\"" {
                 // Note that the closing double quote has been found.
-                found_closing_dq = true
+                found_closing_dq = true;
+                // If we are not expecting any more hashes:
+                if hashes == 0 {
+                    // Valid raw string, advance to the end of the double quote.
+                    return j
+                }
             }
         }
 
-        // Step forward.
-        i += 1;
+        // Step forward, ready for the next iteration.
+        i = j;
     }
 
     // Reached the end of the `raw` input string. Any leading hashes should have
     // been balanced by trailing hashes.
-    if hashes == 0 { i } else { pos }
+    if found_closing_dq && hashes == 0 { i } else { pos }
 }
 
 
@@ -120,53 +152,134 @@ mod tests {
     
 
     #[test]
-    fn identify_string_typical() {
+    fn identify_string_correct() {
+        // Regular.
         let raw = "abc\"ok\"xyz";
         assert_eq!(identify(raw, 2), 2); // c"ok
         assert_eq!(identify(raw, 3), 7); // "ok" advance four places
         assert_eq!(identify(raw, 4), 4); // ok"x
-    }
-
-    #[test]
-    fn identify_string_basic_raw() {
+        // Raw.
         assert_eq!(identify("-r\"ok\"-", 1), 6);
         assert_eq!(identify("r#\"ok\"#", 0), 7);
         assert_eq!(identify("abcr###\"ok\"###xyz", 3), 14);
-    }
+        assert_eq!(identify("abcr###\"ok\"####xyz", 3), 14);
+        // Byte.
+        // @TODO
+        // Byte raw.
+        // @TODO
 
-    #[test]
-    fn identify_string_escaped_double_quote() {
+        // Escapes.
+        // Escaped double quote.
         let raw = "a\"b\\\"c\"d";
         assert_eq!(identify(raw, 0), 0); // a"b\"c
         assert_eq!(identify(raw, 1), 7); // "b\"c" advance six places
         assert_eq!(identify(raw, 2), 2); // b\"c"d
         assert_eq!(identify(raw, 3), 3); // \"c"d
         assert_eq!(identify(raw, 4), 7); // "c"d no ‘lookbehind’ happens!
-    }
-
-    #[test]
-    fn identify_string_escapes() {
-        // Valid escapes, regular string.
+        // Correct escapes, regular string.
         let raw = r#"a"\0\\\\\"\\\n"z"#;
         assert_eq!(identify(raw, 0),  0);  // a"\0\\\\\"\\\n"
         assert_eq!(identify(raw, 1),  15); // "\0\\\\\"\\\n"z
         assert_eq!(identify(raw, 2),  2);  // \0\\\\\"\\\n"z
         assert_eq!(identify(raw, 9),  15); // "\\\n"z no ‘lookbehind’s!
         assert_eq!(identify(raw, 14), 14); // "z not a string, has no end
-        // Invalid escapes, regular string.
-        assert_eq!(identify("\\a\\b\\c", 0), 0); // \a\b\c
-        // Valid escapes, raw string.
+        // Correct escapes, raw string.
         assert_eq!(identify("r\"\\0\\n\\t\"", 0), 9); // r"\0\n\t"
-        // Invalid escapes, raw string.
-        assert_eq!(identify("r#\"\\X\\Y\\Z\"#", 0), 11); // r#"\X\Y\Z"#
     }
 
     #[test]
-    fn identify_string_invalid_raw() {
+    fn identify_string_incorrect() {
+        // Incorrect escapes, regular string.
+        assert_eq!(identify("\\a\\b\\c", 0), 0); // \a\b\c
+        // Incorrect escapes, raw string.
+        assert_eq!(identify("r#\"\\X\\Y\\Z\"#", 0), 11); // r#"\X\Y\Z"#
+        // Incorrect raw.
         assert_eq!(identify("r##X#\" X in leading hashes \"###", 0), 0);
         assert_eq!(identify("r###\" X in trailing hashes \"##X#", 0), 0);
         assert_eq!(identify("r###\" too few trailing hashes \"##", 0), 0);
         assert_eq!(identify("-r###\" no trailing hashes \"-", 1), 1);
+        // Incorrect byte.
+        // @TODO
+        // Incorrect byte raw.
+        // @TODO
+    }
+
+    #[test]
+    fn identify_string_will_not_panic() {
+        // Near the end of the `raw` input code.
+        assert_eq!(identify("", 0), 0);               // empty string
+        assert_eq!(identify("\"", 0), 0);             // "
+        assert_eq!(identify("\"a", 0), 0);            // "a
+        assert_eq!(identify("\"\\", 0), 0);           // "\
+        assert_eq!(identify("\"\\n", 0), 0);          // "\n
+        assert_eq!(identify("\"\\z", 0), 0);          // "\z
+        assert_eq!(identify("\"\\z\\", 0), 0);        // "\z\
+        assert_eq!(identify("\"\\z\\\"", 0), 0);      // "\z\"
+        assert_eq!(identify("r", 0), 0);              // r
+        assert_eq!(identify("r\"", 0), 0);            // r"
+        assert_eq!(identify("r\"a", 0), 0);           // r"a
+        assert_eq!(identify("r\"\\", 0), 0);          // r"\
+        assert_eq!(identify("r\"\\n", 0), 0);         // r"\n
+        assert_eq!(identify("r\"\\z", 0), 0);         // r"\z
+        assert_eq!(identify("r\"\\z\\", 0), 0);       // r"\z\
+        assert_eq!(identify("r\"\\z\\\"", 0), 0);     // r"\z\"
+        assert_eq!(identify("r\"\\z\\\"\"", 0), 7);   // r"\z\""
+        assert_eq!(identify("r#", 0), 0);             // r#
+        assert_eq!(identify("r#\"", 0), 0);           // r#"
+        assert_eq!(identify("r#\"a", 0), 0);          // r#"a
+        assert_eq!(identify("r#\"\\", 0), 0);         // r#"\
+        assert_eq!(identify("r#\"\\n", 0), 0);        // r#"\n
+        assert_eq!(identify("r#\"\\z", 0), 0);        // r#"\z
+        assert_eq!(identify("r#\"\\z\\", 0), 0);      // r#"\z\
+        assert_eq!(identify("r#\"\\z\\\"", 0), 0);    // r#"\z\"
+        assert_eq!(identify("r#\"\\z\\\"#", 0), 0);   // r#"\z\"#
+        assert_eq!(identify("r#\"\\z\\\"\"#", 0), 9); // r#"\z\""#
+        assert_eq!(identify("r##\"\\z\\\"\"#", 0), 0);// r##"\z\""# missing hash
+        // Invalid `pos`.
+        assert_eq!(identify("abc", 2), 2); // 2 is before "c", so in range
+        assert_eq!(identify("abc", 3), 3); // 3 is after "c", so incorrect
+        assert_eq!(identify("abc", 4), 4); // 4 is out of range
+        assert_eq!(identify("abc", 100), 100); // 100 is way out of range
+        // Non-ascii.
+        assert_eq!(identify("€", 1), 1); // part way through the three eurobytes
+        assert_eq!(identify("\"€", 0), 0); // non-ascii after "
+        assert_eq!(identify("\"a€", 0), 0); // non-ascii after "a
+        assert_eq!(identify("\"\\€", 0), 0); // non-ascii after "\
+        assert_eq!(identify("\"\\z€", 0), 0); // non-ascii after "\z
+        assert_eq!(identify("\"\\z\\€", 0), 0); // non-ascii after "\z\
+        assert_eq!(identify("\"\\z\\\"€", 0), 0); // non-ascii after "\z\"
+        assert_eq!(identify("\"\\z\\\"\"€", 0), 6); // non-ascii after "\z\""
+        assert_eq!(identify("\"€\"", 0), 5); // three-byte non-ascii in ""
+        assert_eq!(identify("\"a€\"", 0), 6); // non-ascii in "a"
+        assert_eq!(identify("\"\\€\"", 0), 6); // non-ascii in "\"
+        assert_eq!(identify("\"\\z€\"", 0), 7); // non-ascii in "\z"
+        assert_eq!(identify("\"\\z\\€\"", 0), 8); // non-ascii in "\z\"
+        assert_eq!(identify("r\"€", 0), 0); // non-ascii after r"
+        assert_eq!(identify("r\"a€", 0), 0); // non-ascii after r"a
+        assert_eq!(identify("r\"\\€", 0), 0); // non-ascii after r"\
+        assert_eq!(identify("r\"\\z€", 0), 0); // non-ascii after r"\z
+        assert_eq!(identify("r\"\\z\\€", 0), 0); // non-ascii after r"\z\
+        assert_eq!(identify("r\"\\z\\\"€", 0), 0); // non-ascii after r"\z\"
+        assert_eq!(identify("r\"\\z\\\"\"€", 0), 7); // non-ascii after r"\z\""
+        assert_eq!(identify("r\"€\"", 0), 6); // non-ascii in r""
+        assert_eq!(identify("r\"a€\"", 0), 7); // non-ascii in r"a"
+        assert_eq!(identify("r\"\\€\"", 0), 7); // non-ascii in r"\"
+        assert_eq!(identify("r\"\\z€\"", 0), 8); // non-ascii in r"\z"
+        assert_eq!(identify("r\"\\z\\€\"", 0), 9); // non-ascii in r"\z\"
+        assert_eq!(identify("r#\"€", 0), 0); // non-ascii after r#"
+        assert_eq!(identify("r#\"a€", 0), 0); // non-ascii after r#"a
+        assert_eq!(identify("r#\"\\€", 0), 0); // non-ascii after r#"\
+        assert_eq!(identify("r#\"\\z€", 0), 0); // non-ascii after r#"\z
+        assert_eq!(identify("r#\"\\z\\€", 0), 0); // non-ascii after r#"\z\
+        assert_eq!(identify("r#\"\\z\\\"€", 0), 0); // non-ascii after r#"\z\"
+        assert_eq!(identify("r#\"\\z\"€", 0), 0); // non-ascii after r#"\z"
+        assert_eq!(identify("r#\"€\"", 0), 0); // non-ascii in r#""
+        assert_eq!(identify("r#\"a€\"", 0), 0); // non-ascii in r#"a"
+        assert_eq!(identify("r#\"\\€\"", 0), 0); // non-ascii in r#"\"
+        assert_eq!(identify("r#\"\\z€\"", 0), 0); // non-ascii in r#"\z"
+        assert_eq!(identify("r#\"\\z\\€\"", 0), 0); // non-ascii in r#"\z\"
+        assert_eq!(identify("r#\"\\z\\€\\\"\"#", 0), 13); // r#"\z\€\""#
+        assert_eq!(identify("r##\"\\z\\€\\\"\"#", 0), 0); // missing hash at end
     }
 
 }

@@ -7,7 +7,9 @@
 /// * `pos` The character position in `raw` to look at
 /// 
 /// ### Returns
-/// @TODO document what this function returns
+/// If `pos` begins a valid looking sequence of punctuation characters,
+/// `identify_punctuation()` returns the character position after it ends.  
+/// Otherwise, `identify_punctuation()` just returns the `pos` argument.
 pub fn identify_punctuation(raw: &str, pos: usize) -> usize {
     // If the current char is past the last char in `raw`, bail out!
     let len = raw.len();
@@ -15,7 +17,7 @@ pub fn identify_punctuation(raw: &str, pos: usize) -> usize {
     // If the current char is not present in PUNCTUATION_1, it is not, and does
     // not begin, punctuation. That’s because PUNCTUATION_2 and PUNCTUATION_3
     // all start with a PUNCTUATION_1 character.
-    let c1 = &raw[pos..pos+1];
+    let c1 = raw.get(pos..pos+1).unwrap_or("~");
     if ! PUNCTUATION_1.contains(&c1) { return pos };
 
     // If the current char is the last in the code, then it must be punctuation.
@@ -23,7 +25,7 @@ pub fn identify_punctuation(raw: &str, pos: usize) -> usize {
 
     // Get two chars. If they are not a 2-char punctuation, then identify just
     // the single-character punctuation.
-    let c2 = &raw[pos..pos+2];
+    let c2 = raw.get(pos..pos+2).unwrap_or("~");
     if ! PUNCTUATION_2.contains(&c2) { return pos + 1 };
 
     // If c2 reaches the end of the code, then c1 starts a 2-char punctuation.
@@ -31,7 +33,7 @@ pub fn identify_punctuation(raw: &str, pos: usize) -> usize {
 
     // Get three chars. If they are not a 3-char punctuation, then identify just
     // the two-character punctuation.
-    let c3 = &raw[pos..pos+3];
+    let c3 = raw.get(pos..pos+3).unwrap_or("~");
     if ! PUNCTUATION_3.contains(&c3) { return pos + 2 };
 
     // `identify_punctuation()` accepts any character at all after finding
@@ -106,17 +108,16 @@ mod tests {
     use super::identify_punctuation as identify;
 
     #[test]
-    fn identify_punctuation_basic() {
+    fn identify_punctuation_correct() {
+        // Basic.
         let raw = "- === 'label ...";
         assert_eq!(identify(raw, 0), 1); // -
         assert_eq!(identify(raw, 2), 4); // == there is no "===" in Rust
         assert_eq!(identify(raw, 3), 5); // == finds the 2nd and 3rd char in ===
         assert_eq!(identify(raw, 6), 7); // ' not considered part of the label
         assert_eq!(identify(raw, 13), 16); // ...
-    }
 
-    #[test]
-    fn identify_punctuation_single_at_end() {
+        // Single at end.
         assert_eq!(identify(" '", 1), 2);
         assert_eq!(identify(" _", 1), 2);
         assert_eq!(identify(" -", 1), 2);
@@ -145,10 +146,7 @@ mod tests {
         assert_eq!(identify(" >", 1), 2);
         assert_eq!(identify(" |", 1), 2);
         assert_eq!(identify(" $", 1), 2);
-    }
-
-    #[test]
-    fn identify_punctuation_single_then_tilde() {
+        // Single then tilde.
         assert_eq!(identify(" '~", 1), 2);
         assert_eq!(identify(" _~", 1), 2);
         assert_eq!(identify(" -~", 1), 2);
@@ -177,10 +175,7 @@ mod tests {
         assert_eq!(identify(" >~", 1), 2);
         assert_eq!(identify(" |~", 1), 2);
         assert_eq!(identify(" $~", 1), 2);
-    }
-
-    #[test]
-    fn identify_punctuation_single_then_equals() {
+        // Single then equals.
         // Subset of single-char punctuation which should be terminated by "=".
         assert_eq!(identify(" '=", 1), 2);
         assert_eq!(identify(" _=", 1), 2);
@@ -198,10 +193,8 @@ mod tests {
         assert_eq!(identify(" @=", 1), 2);
         assert_eq!(identify(" #=", 1), 2);
         assert_eq!(identify(" $=", 1), 2);
-    }
 
-    #[test]
-    fn identify_punctuation_double_at_end() {
+        // Double at end.
         assert_eq!(identify(" -=", 1), 3);
         assert_eq!(identify(" ->", 1), 3);
         assert_eq!(identify(" ::", 1), 3);
@@ -222,10 +215,7 @@ mod tests {
         assert_eq!(identify(" >>", 1), 3);
         assert_eq!(identify(" |=", 1), 3);
         assert_eq!(identify(" ||", 1), 3);
-    }
-
-    #[test]
-    fn identify_punctuation_double_then_tilde() {
+        // Double then tilde.
         assert_eq!(identify(" -=~", 1), 3);
         assert_eq!(identify(" ->~", 1), 3);
         assert_eq!(identify(" ::~", 1), 3);
@@ -246,10 +236,7 @@ mod tests {
         assert_eq!(identify(" >>~", 1), 3);
         assert_eq!(identify(" |=~", 1), 3);
         assert_eq!(identify(" ||~", 1), 3);
-    }
-
-    #[test]
-    fn identify_punctuation_double_then_equals() {
+        // Double then equals.
         // Subset of double-char punctuation which should be terminated by "=".
         assert_eq!(identify(" -==", 1), 3);
         assert_eq!(identify(" ->=", 1), 3);
@@ -268,26 +255,18 @@ mod tests {
         assert_eq!(identify(" >==", 1), 3);
         assert_eq!(identify(" |==", 1), 3);
         assert_eq!(identify(" ||=", 1), 3);
-    }
 
-    #[test]
-    fn identify_punctuation_triple_at_end() {
+        // Triple at end.
         assert_eq!(identify(" ...", 1), 4);
         assert_eq!(identify(" ..=", 1), 4);
         assert_eq!(identify(" <<=", 1), 4);
         assert_eq!(identify(" >>=", 1), 4);
-    }
-
-    #[test]
-    fn identify_punctuation_triple_then_tilde() {
+        // Triple then tilde.
         assert_eq!(identify(" ...~", 1), 4);
         assert_eq!(identify(" ..=~", 1), 4);
         assert_eq!(identify(" <<=~", 1), 4);
         assert_eq!(identify(" >>=~", 1), 4);
-    }
-
-    #[test]
-    fn identify_punctuation_triple_then_equals() {
+        // Triple then equals.
         // All triple-char punctuation should be terminated by "=".
         assert_eq!(identify(" ...=", 1), 4);
         assert_eq!(identify(" ..==", 1), 4);
@@ -296,21 +275,29 @@ mod tests {
     }
 
     #[test]
-    fn identify_punctuation_invalid() {
+    fn identify_punctuation_incorrect() {
         let raw = "` =* .:.";
-        assert_eq!(identify(raw, 0), 0); // ` backtick is not Rust punc
+        assert_eq!(identify(raw, 0), 0); // backtick is not Rust punctuation
         assert_eq!(identify(raw, 2), 3); // the = of =* is accepted
         assert_eq!(identify(raw, 5), 6); // the . of .:. is accepted
     }
 
     #[test]
-    fn identify_punctuation_invalid_pos_doesnt_panic() {
+    fn identify_punctuation_will_not_panic() {
+        // Near the end of `raw`.
+        assert_eq!(identify("", 0), 0); // empty string
+        assert_eq!(identify("~", 0), 0); // tilde is not Rust punctuation
+        assert_eq!(identify(">", 0), 1); // >
+        // Invalid `pos`.
         assert_eq!(identify("abc", 2), 2); // 2 is before "c", so in range
         assert_eq!(identify("abc", 3), 3); // 3 is after "c", so incorrect
         assert_eq!(identify("abc", 4), 4); // 4 is out of range
         assert_eq!(identify("abc", 100), 100); // 100 is way out of range
+        // Non-ascii.
+        assert_eq!(identify("€", 1), 1); // part way through the three eurobytes
+        assert_eq!(identify(".€", 0), 1); // non-ascii after .
+        assert_eq!(identify("..€", 0), 2); // non-ascii after ..
+        assert_eq!(identify("...€", 0), 3); // non-ascii after ...
     }
 
-    //@TODO test identify_punctuation() more fully, especially make sure it guards
-    // against searching past the end of the code input.
 }

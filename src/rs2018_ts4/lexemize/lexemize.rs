@@ -1,4 +1,4 @@
-//! Transforms a Rust 2018 program into lexemes.
+//! Transforms raw Rust 2018 code into Lexemes.
 
 use std::fmt;
 
@@ -50,106 +50,177 @@ impl fmt::Display for LexemizeResult {
 /// * `raw` The original Rust code, assumed to conform to the 2018 edition
 /// 
 /// ### Returns
-/// @TODO document what this function returns
+/// `lexemize()` returns a [`LexemizeResult`] object.
 pub fn lexemize(
     raw: &str
 ) -> LexemizeResult {
-    // Initialise `len`, `pos`, and the output object.
+    // Initialise `len`, and some mutable variables.
     let len = raw.len();
     let mut pos = 0;
+    let mut xtra_pos = 0;
     let mut result = LexemizeResult {
         end_pos: 0,
         lexemes: vec![],
     };
-  
-    // Loop until we reach the last character of the original Rust code.
+
+    // Loop until we reach the last character of the input string.
     while pos < len {
+        if raw.is_char_boundary(pos) {
 
-        // Deal with a literal char, if one begins here.
-        let next_pos = identify_character(raw, pos);
-        if next_pos != pos {
-            result.lexemes.push(Lexeme {
-                kind: LexemeKind::Character,
-                pos,
-                snippet: raw[pos..next_pos].to_string(),
-            });
-            pos = next_pos;
-            continue;
+            // Deal with a literal char, if one begins here.
+            let next_pos = identify_character(raw, pos);
+            if next_pos != pos {
+                if xtra_pos != pos {
+                    result.lexemes.push(Lexeme {
+                        kind: LexemeKind::Xtraneous,
+                        pos: xtra_pos,
+                        snippet: raw[xtra_pos..pos].to_string(),
+                    });
+                }
+                result.lexemes.push(Lexeme {
+                    kind: LexemeKind::Character,
+                    pos,
+                    snippet: raw[pos..next_pos].to_string(),
+                });
+                pos = next_pos;
+                xtra_pos = pos;
+                continue;
+            }
+
+            // Deal with an inline or multiline comment, if one begins here.
+            let next_pos = identify_comment(raw, pos);
+            if next_pos != pos {
+                if xtra_pos != pos {
+                    result.lexemes.push(Lexeme {
+                        kind: LexemeKind::Xtraneous,
+                        pos: xtra_pos,
+                        snippet: raw[xtra_pos..pos].to_string(),
+                    });
+                }
+                result.lexemes.push(Lexeme {
+                    kind: LexemeKind::Comment,
+                    pos,
+                    snippet: raw[pos..next_pos].to_string(),
+                });
+                pos = next_pos;
+                xtra_pos = pos;
+                continue;
+            }
+        
+            // Deal with a literal string, if one begins here.
+            let next_pos = identify_string(raw, pos);
+            if next_pos != pos {
+                if xtra_pos != pos {
+                    result.lexemes.push(Lexeme {
+                        kind: LexemeKind::Xtraneous,
+                        pos: xtra_pos,
+                        snippet: raw[xtra_pos..pos].to_string(),
+                    });
+                }
+                result.lexemes.push(Lexeme {
+                    kind: LexemeKind::String,
+                    pos,
+                    snippet: raw[pos..next_pos].to_string(),
+                });
+                pos = next_pos;
+                xtra_pos = pos;
+                continue;
+            }
+
+            // Deal with an identifier, if one begins here.
+            let next_pos = identify_identifier(raw, pos);
+            if next_pos != pos {
+                if xtra_pos != pos {
+                    result.lexemes.push(Lexeme {
+                        kind: LexemeKind::Xtraneous,
+                        pos: xtra_pos,
+                        snippet: raw[xtra_pos..pos].to_string(),
+                    });
+                }
+                result.lexemes.push(Lexeme {
+                    kind: LexemeKind::Identifier,
+                    pos,
+                    snippet: raw[pos..next_pos].to_string(),
+                });
+                pos = next_pos;
+                xtra_pos = pos;
+                continue;
+            }
+
+            // Deal with a literal number, if one begins here.
+            let next_pos = identify_number(raw, pos);
+            if next_pos != pos {
+                if xtra_pos != pos {
+                    result.lexemes.push(Lexeme {
+                        kind: LexemeKind::Xtraneous,
+                        pos: xtra_pos,
+                        snippet: raw[xtra_pos..pos].to_string(),
+                    });
+                }
+                result.lexemes.push(Lexeme {
+                    kind: LexemeKind::Number,
+                    pos,
+                    snippet: raw[pos..next_pos].to_string(),
+                });
+                pos = next_pos;
+                xtra_pos = pos;
+                continue;
+            }
+        
+            // Deal with punctuation, if a sequence of 1, 2 or 3 begins here.
+            let next_pos = identify_punctuation(raw, pos);
+            if next_pos != pos {
+                if xtra_pos != pos {
+                    result.lexemes.push(Lexeme {
+                        kind: LexemeKind::Xtraneous,
+                        pos: xtra_pos,
+                        snippet: raw[xtra_pos..pos].to_string(),
+                    });
+                }
+                result.lexemes.push(Lexeme {
+                    kind: LexemeKind::Punctuation,
+                    pos,
+                    snippet: raw[pos..next_pos].to_string(),
+                });
+                pos = next_pos;
+                xtra_pos = pos;
+                continue;
+            }
+
+            // Deal with whitespace, if whitespace begins here.
+            let next_pos = identify_whitespace(raw, pos);
+            if next_pos != pos {
+                if xtra_pos != pos {
+                    result.lexemes.push(Lexeme {
+                        kind: LexemeKind::Xtraneous,
+                        pos: xtra_pos,
+                        snippet: raw[xtra_pos..pos].to_string(),
+                    });
+                }
+                result.lexemes.push(Lexeme {
+                    kind: LexemeKind::Whitespace,
+                    pos,
+                    snippet: raw[pos..next_pos].to_string(),
+                });
+                pos = next_pos;
+                xtra_pos = pos;
+                continue;
+            }
+
+            // Anything else is an xtraneous character, which will be picked up
+            // by the `xtra_pos != pos` conditional.
         }
 
-        // Deal with an inline or multiline comment, if one begins here.
-        let next_pos = identify_comment(raw, pos);
-        if next_pos != pos {
-            result.lexemes.push(Lexeme {
-                kind: LexemeKind::Comment,
-                pos,
-                snippet: raw[pos..next_pos].to_string(),
-            });
-            pos = next_pos;
-            continue;
-        }
-    
-        // Deal with a literal string, if one begins here.
-        let next_pos = identify_string(raw, pos);
-        if next_pos != pos {
-            result.lexemes.push(Lexeme {
-                kind: LexemeKind::String,
-                pos,
-                snippet: raw[pos..next_pos].to_string(),
-            });
-            pos = next_pos;
-            continue;
-        }
-
-        // Deal with an identifier, if one begins here.
-        let next_pos = identify_identifier(raw, pos);
-        if next_pos != pos {
-            result.lexemes.push(Lexeme {
-                kind: LexemeKind::Identifier,
-                pos,
-                snippet: raw[pos..next_pos].to_string(),
-            });
-            pos = next_pos;
-            continue;
-        }
-
-        // Deal with a literal number, if one begins here.
-        let next_pos = identify_number(raw, pos);
-        if next_pos != pos {
-            result.lexemes.push(Lexeme {
-                kind: LexemeKind::Number,
-                pos,
-                snippet: raw[pos..next_pos].to_string(),
-            });
-            pos = next_pos;
-            continue;
-        }
-    
-        // Deal with punctuation, if a sequence of 1, 2 or 3 begins here.
-        let next_pos = identify_punctuation(raw, pos);
-        if next_pos != pos {
-            result.lexemes.push(Lexeme {
-                kind: LexemeKind::Punctuation,
-                pos,
-                snippet: raw[pos..next_pos].to_string(),
-            });
-            pos = next_pos;
-            continue;
-        }
-
-        // Deal with whitespace, if whitespace begins here.
-        let next_pos = identify_whitespace(raw, pos);
-        if next_pos != pos {
-            result.lexemes.push(Lexeme {
-                kind: LexemeKind::Whitespace,
-                pos,
-                snippet: raw[pos..next_pos].to_string(),
-            });
-            pos = next_pos;
-            continue;
-        }
-    
+        // Step forward one byte.
         pos += 1;
+    }
+
+    if xtra_pos != pos {
+        result.lexemes.push(Lexeme {
+            kind: LexemeKind::Xtraneous,
+            pos: xtra_pos,
+            snippet: raw[xtra_pos..pos].to_string(),
+        });
     }
 
     result.end_pos = pos;
@@ -187,17 +258,17 @@ mod tests {
     }
 
     #[test]
-    fn lexemize_empty_input() {
-        let raw = "";
-        assert_eq!(lexemize(raw).to_string(),
+    fn lexemize_all_lexemes() {
+        // Empty string.
+        assert_eq!(lexemize("").to_string(),
             "Lexemes found: 0\n\
              EndOfInput          0  <EOI>");
     }
 
     #[test]
-    fn lexemize_three_characters() {
-        let raw = "'Z''\\t''\\0'";
-        assert_eq!(lexemize(raw).to_string(),
+    fn lexemize_characters() {
+        // Three Characters.
+        assert_eq!(lexemize("'Z''\\t''\\0'").to_string(),
             "Lexemes found: 3\n\
              Character           0  'Z'\n\
              Character           3  '\\t'\n\
@@ -207,9 +278,9 @@ mod tests {
     }
 
     #[test]
-    fn lexemize_three_comments() {
-        let raw = "/**A/*A'*/*///B\n//C";
-        assert_eq!(lexemize(raw).to_string(),
+    fn lexemize_comments() {
+        // Three Comments.
+        assert_eq!(lexemize("/**A/*A'*/*///B\n//C").to_string(),
             "Lexemes found: 4\n\
              Comment             0  /**A/*A'*/*/\n\
              Comment            12  //B\n\
@@ -220,9 +291,9 @@ mod tests {
     }
 
     #[test]
-    fn three_identifiers() {
-        let raw = "abc;_D,__12";
-        assert_eq!(lexemize(raw).to_string(),
+    fn lexemize_identifiers() {
+        // Three Identifiers.
+        assert_eq!(lexemize("abc;_D,__12").to_string(),
             "Lexemes found: 5\n\
              Identifier          0  abc\n\
              Punctuation         3  ;\n\
@@ -234,9 +305,9 @@ mod tests {
     }
 
     #[test]
-    fn three_numbers() {
-        let raw = "0b1001_0011 0x__01aB__ 1_2.3_4E+_5_";
-        assert_eq!(lexemize(raw).to_string(),
+    fn lexemize_numbers() {
+        // Three Numbers.
+        assert_eq!(lexemize("0b1001_0011 0x__01aB__ 1_2.3_4E+_5_").to_string(),
             "Lexemes found: 5\n\
              Number              0  0b1001_0011\n\
              Whitespace         11   \n\
@@ -248,9 +319,9 @@ mod tests {
     }
 
     #[test]
-    fn three_punctuations() {
-        let raw = ";*=>>=";
-        assert_eq!(lexemize(raw).to_string(),
+    fn lexemize_punctuations() {
+        // Three Punctuations.
+        assert_eq!(lexemize(";*=>>=").to_string(),
             "Lexemes found: 3\n\
              Punctuation         0  ;\n\
              Punctuation         1  *=\n\
@@ -260,9 +331,9 @@ mod tests {
     }
 
     #[test]
-    fn three_strings() {
-        let raw = "\"\"\"ok\"r##\"\\\"\"##";
-        assert_eq!(lexemize(raw).to_string(),
+    fn lexemize_strings() {
+        // Three Strings.
+        assert_eq!(lexemize("\"\"\"ok\"r##\"\\\"\"##").to_string(),
             "Lexemes found: 3\n\
              String              0  \"\"\n\
              String              2  \"ok\"\n\
@@ -272,9 +343,9 @@ mod tests {
     }
 
     #[test]
-    fn three_whitespace() {
-        let raw = "\t\ta \n\nb\r ";
-        assert_eq!(lexemize(raw).to_string(),
+    fn lexemize_whitespace() {
+        // Three Whitespace.
+        assert_eq!(lexemize("\t\ta \n\nb\r ").to_string(),
             "Lexemes found: 5\n\
              Whitespace          0  \t\t\n\
              Identifier          2  a\n\
@@ -285,4 +356,27 @@ mod tests {
       );
     }
 
+    #[test]
+    fn lexemize_xtraneous() {
+        // Mixture.
+        assert_eq!(lexemize("~¶ €").to_string(),
+            "Lexemes found: 3\n\
+             Xtraneous           0  ~¶\n\
+             Whitespace          3   \n\
+             Xtraneous           4  €\n\
+             EndOfInput          7  <EOI>"
+        );
+        // Non-ascii.
+        assert_eq!(lexemize("~`\\").to_string(),
+            "Lexemes found: 1\n\
+             Xtraneous           0  ~`\\\n\
+             EndOfInput          3  <EOI>"
+        );
+        // Ascii.
+        assert_eq!(lexemize("é¢€±").to_string(),
+            "Lexemes found: 1\n\
+             Xtraneous           0  é¢€±\n\
+             EndOfInput          9  <EOI>"
+        );
+    }
 }
