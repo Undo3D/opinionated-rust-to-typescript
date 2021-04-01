@@ -60,19 +60,19 @@ pub const DETECTORS_AND_KINDS: [(
 /// whitespace and identifiers. Anything left over is marked as ‘xtraneous’.
 /// 
 /// Any input string can be lexemized, so this function never returns any kind
-/// of error. Checking `raw` for semantic correctness should be done later on,
+/// of error. Checking `orig` for semantic correctness should be done later on,
 /// during tokenization and parsing.
 /// 
 /// ### Arguments
-/// * `raw` The original Rust code, assumed to conform to the 2018 edition
+/// * `orig` The original Rust code, assumed to conform to the 2018 edition
 /// 
 /// ### Returns
 /// `lexemize()` returns a [`LexemizeResult`] object.
 pub fn lexemize(
-    raw: &str
+    orig: &str
 ) -> LexemizeResult {
     // Initialise `len`, and some mutable variables.
-    let len = raw.len();
+    let len = orig.len();
     let mut pos = 0;
     let mut xtra_pos = 0;
     let mut result = LexemizeResult {
@@ -83,7 +83,7 @@ pub fn lexemize(
     // Loop until we reach the last character of the input string.
     'outer: while pos < len {
         // Only try to detect a Lexeme if this is the start of a character.
-        if raw.is_char_boundary(pos) {
+        if orig.is_char_boundary(pos) {
             // Step through the array of `detect_*()` functions, and their
             // associated `LexemeKinds`.
             for (detector, kind) in DETECTORS_AND_KINDS.iter() {
@@ -91,7 +91,7 @@ pub fn lexemize(
                 let next_pos = detect(
                     *detector,
                     *kind,
-                    raw,
+                    orig,
                     pos,
                     xtra_pos,
                     &mut result
@@ -113,13 +113,13 @@ pub fn lexemize(
         pos += 1;
     }
 
-    // If there are unidentifiable characters at the end of `raw`, add a final 
+    // If there are unidentifiable characters at the end of `orig`, add a final 
     // `Xtraneous` Lexeme before returning `result`.
     if xtra_pos != pos {
         result.lexemes.push(Lexeme {
             kind: LexemeKind::Xtraneous,
             pos: xtra_pos,
-            snippet: raw[xtra_pos..pos].to_string(),
+            snippet: orig[xtra_pos..pos].to_string(),
         });
     }
 
@@ -130,14 +130,14 @@ pub fn lexemize(
 fn detect(
     detector: fn (&str, usize) -> usize,
     kind: LexemeKind,
-    raw: &str,
+    orig: &str,
     pos: usize,
     xtra_pos: usize,
     result: &mut LexemizeResult,
 ) -> usize {
     // If the passed-in `detector()` does not detect the Lexeme, it will return
     // the same char-position as `pos`. In that case, just return `pos`.
-    let next_pos = detector(raw, pos);
+    let next_pos = detector(orig, pos);
     if next_pos == pos { return pos }
 
     // If any ‘Xtraneous’ characters precede this Lexeme, record them before
@@ -146,13 +146,13 @@ fn detect(
         result.lexemes.push(Lexeme {
             kind: LexemeKind::Xtraneous,
             pos: xtra_pos,
-            snippet: raw[xtra_pos..pos].to_string(),
+            snippet: orig[xtra_pos..pos].to_string(),
         });
     }
     result.lexemes.push(Lexeme {
         kind,
         pos,
-        snippet: raw[pos..next_pos].to_string(),
+        snippet: orig[pos..next_pos].to_string(),
     });
 
     // Tell `lexemize()` the character position of the end of the Lexeme.

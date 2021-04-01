@@ -4,7 +4,7 @@
 /// 
 /// ### The `to_string()` method
 /// `Config::to_string()` provides a handy summary of your confguration. In this
-/// case, `rs_to_ts()` will expect the `raw` argument to be 2018 edition Rust,
+/// case, `rs_to_ts()` will expect the `orig` argument to be 2018 edition Rust,
 /// and will output very readable TypeScript 4, which pollutes global scope.
 /// ```
 /// # use opinionated_rust_to_typescript::transpile::config::Config;

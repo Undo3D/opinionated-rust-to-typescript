@@ -5,14 +5,14 @@ use crate::transpile::result::TranspileResult;
 /// Transpiles Rust 2018 code to TypeScript 4 code using the ‘Gungho’ strategy.
 /// 
 /// ### Arguments
-/// * `raw` The original Rust code, assumed to conform to the 2018 edition
+/// * `orig` The original Rust code, assumed to conform to the 2018 edition
 /// 
 /// ### Returns
 /// @TODO document what this function returns
 pub fn rs2018_ts4_gungho(
-    raw: &str
+    orig: &str
 ) -> TranspileResult {
-    if raw.contains("FOUR") {
+    if orig.contains("FOUR") {
         TranspileResult::new()
             .push_main_line("const FOUR: Number = 4;")
     } else {

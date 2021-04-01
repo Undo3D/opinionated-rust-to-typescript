@@ -8,7 +8,7 @@ use super::result::TranspileResult;
 /// This is the library’s main function.
 /// 
 /// ### Arguments
-/// * `raw` The original Rust code
+/// * `orig` The original Rust code
 /// * `config` Defines code versions and transpilation strategy — see below
 /// 
 /// ### Returns
@@ -51,7 +51,7 @@ use super::result::TranspileResult;
 /// ```
 /// 
 pub fn rs_to_ts(
-    raw: &str,
+    orig: &str,
     config: Config,
 ) -> TranspileResult {
     if config.rs_edition == RsEdition::Rs2015 {
@@ -66,7 +66,7 @@ pub fn rs_to_ts(
         return make_not_implemented_result(
             "TsMajor::Ts3 is not implemented yet");
     }
-    crate::rs2018_ts4::rs2018_ts4_gungho::rs2018_ts4_gungho(raw)
+    crate::rs2018_ts4::rs2018_ts4_gungho::rs2018_ts4_gungho(orig)
 }
 
 fn make_not_implemented_result(message: &'static str) -> TranspileResult {

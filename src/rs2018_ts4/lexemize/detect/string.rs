@@ -6,41 +6,41 @@
 /// @TODO `br` prefix, eg `br#"Just "the" bytes"#`
 /// 
 /// ### Arguments
-/// * `raw` The original Rust code, assumed to conform to the 2018 edition
-/// * `pos` The character position in `raw` to look at
+/// * `orig` The original Rust code, assumed to conform to the 2018 edition
+/// * `pos` The character position in `orig` to look at
 /// 
 /// ### Returns
 /// If `pos` begins a valid looking string literal, `detect_string()` returns
 /// the character position after the closing single quote (or hash).  
 /// Otherwise, `detect_string()` just returns the `pos` argument.
-pub fn detect_string(raw: &str, pos: usize) -> usize {
-    // If the current char is the last in `raw`, it does not begin a string.
-    let len = raw.len();
+pub fn detect_string(orig: &str, pos: usize) -> usize {
+    // If the current char is the last in `orig`, it does not begin a string.
+    let len = orig.len();
     if len < pos + 1 { return pos }
 
     // If the current char is:
-    match get_aot(raw, pos) {
+    match get_aot(orig, pos) {
         // A double quote, `pos` could begin a regular string.
-        "\"" => detect_regular_string(raw, pos, len),
+        "\"" => detect_regular_string(orig, pos, len),
         // A lowercase "r", `pos` could begin a raw string.
-        "r" => detect_raw_string(raw, pos, len),
+        "r" => detect_raw_string(orig, pos, len),
         // Anything else, `pos` does not begin a string.
         _ => pos,
     }
 }
 
 // Returns the ascii character at a position, or tilde if invalid or non-ascii.
-fn get_aot(raw: &str, pos: usize) -> &str { raw.get(pos..pos+1).unwrap_or("~") }
+fn get_aot(orig: &str, p: usize) -> &str { orig.get(p..p+1).unwrap_or("~") }
 
-fn detect_regular_string(raw: &str, pos: usize, len: usize) -> usize {
+fn detect_regular_string(orig: &str, pos: usize, len: usize) -> usize {
     // Slightly hacky way to to skip forward while looping.
     let mut i = pos + 1;
-    // Step through each char, from `pos` to the end of the raw input code.
+    // Step through each char, from `pos` to the end of the original input code.
     while i < len {
         // Get this character, even if it’s non-ascii.
         let mut j = i + 1;
-        while !raw.is_char_boundary(j) { j += 1 }
-        let c = &raw[i..j];
+        while !orig.is_char_boundary(j) { j += 1 }
+        let c = &orig[i..j];
         // If this char is a backslash:
         if c == "\\" {
             // If the backlash ends the input code, this is not a string.
@@ -48,7 +48,7 @@ fn detect_regular_string(raw: &str, pos: usize, len: usize) -> usize {
             // Ignore the next character, even if it’s non-ascii.
             // Treat "\€" as a string Lexeme, even though it’s invalid code.
             j += 1;
-            while !raw.is_char_boundary(j) { j += 1 }
+            while !orig.is_char_boundary(j) { j += 1 }
         // If this char is a double quote:
         } else if c == "\"" {
             // Advance to the end of the double quote.
@@ -62,7 +62,7 @@ fn detect_regular_string(raw: &str, pos: usize, len: usize) -> usize {
 }
 
 // doc.rust-lang.org/reference/tokens.html#raw-string-literals
-fn detect_raw_string(raw: &str, pos: usize, len: usize) -> usize {
+fn detect_raw_string(orig: &str, pos: usize, len: usize) -> usize {
     // If there are less than two chars after the "r", it cannot begin a string.
     if len < pos + 3 { return pos }
     // Slightly hacky way to to skip forward while looping.
@@ -73,14 +73,14 @@ fn detect_raw_string(raw: &str, pos: usize, len: usize) -> usize {
     let mut found_opening_dq = false;
     let mut found_closing_dq = false;
 
-    // Step through each char, from `pos` to the end of the raw input code.
-    // `len-1` saves a nanosecond or two, but also prevents `raw[i..i+1]` from
+    // Step through each char, from `pos` to the end of the original input code.
+    // `len-1` saves a nanosecond or two, but also prevents `orig[i..i+1]` from
     // panicking at the end of the input.
     while i < len {
         // Get this character, even if it’s non-ascii.
         let mut j = i + 1;
-        while !raw.is_char_boundary(j) { j += 1 }
-        let c = &raw[i..j];
+        while !orig.is_char_boundary(j) { j += 1 }
+        let c = &orig[i..j];
 
         // If we have not found the opening double quote yet:
         if ! found_opening_dq {
@@ -123,7 +123,7 @@ fn detect_raw_string(raw: &str, pos: usize, len: usize) -> usize {
                 // Ignore the next character, even if it’s non-ascii.
                 // Treat "\€" as a string Lexeme, even though it’s invalid code.
                 j += 1;
-                while !raw.is_char_boundary(j) { j += 1 }
+                while !orig.is_char_boundary(j) { j += 1 }
             // If this char is a double quote:
             } else if c == "\"" {
                 // Note that the closing double quote has been found.
@@ -140,7 +140,7 @@ fn detect_raw_string(raw: &str, pos: usize, len: usize) -> usize {
         i = j;
     }
 
-    // Reached the end of the `raw` input string. Any leading hashes should have
+    // Reached the end of the `orig` input string. Any leading hashes should have
     // been balanced by trailing hashes.
     if found_closing_dq && hashes == 0 { i } else { pos }
 }
@@ -154,10 +154,10 @@ mod tests {
     #[test]
     fn detect_string_correct() {
         // Regular.
-        let raw = "abc\"ok\"xyz";
-        assert_eq!(detect(raw, 2), 2); // c"ok
-        assert_eq!(detect(raw, 3), 7); // "ok" advance four places
-        assert_eq!(detect(raw, 4), 4); // ok"x
+        let orig = "abc\"ok\"xyz";
+        assert_eq!(detect(orig, 2), 2); // c"ok
+        assert_eq!(detect(orig, 3), 7); // "ok" advance four places
+        assert_eq!(detect(orig, 4), 4); // ok"x
         // Raw.
         assert_eq!(detect("-r\"ok\"-", 1), 6);
         assert_eq!(detect("r#\"ok\"#", 0), 7);
@@ -170,19 +170,19 @@ mod tests {
 
         // Escapes.
         // Escaped double quote.
-        let raw = "a\"b\\\"c\"d";
-        assert_eq!(detect(raw, 0), 0); // a"b\"c
-        assert_eq!(detect(raw, 1), 7); // "b\"c" advance six places
-        assert_eq!(detect(raw, 2), 2); // b\"c"d
-        assert_eq!(detect(raw, 3), 3); // \"c"d
-        assert_eq!(detect(raw, 4), 7); // "c"d no ‘lookbehind’ happens!
+        let orig = "a\"b\\\"c\"d";
+        assert_eq!(detect(orig, 0), 0); // a"b\"c
+        assert_eq!(detect(orig, 1), 7); // "b\"c" advance six places
+        assert_eq!(detect(orig, 2), 2); // b\"c"d
+        assert_eq!(detect(orig, 3), 3); // \"c"d
+        assert_eq!(detect(orig, 4), 7); // "c"d no ‘lookbehind’ happens!
         // Correct escapes, regular string.
-        let raw = r#"a"\0\\\\\"\\\n"z"#;
-        assert_eq!(detect(raw, 0),  0);  // a"\0\\\\\"\\\n"
-        assert_eq!(detect(raw, 1),  15); // "\0\\\\\"\\\n"z
-        assert_eq!(detect(raw, 2),  2);  // \0\\\\\"\\\n"z
-        assert_eq!(detect(raw, 9),  15); // "\\\n"z no ‘lookbehind’s!
-        assert_eq!(detect(raw, 14), 14); // "z not a string, has no end
+        let orig = r#"a"\0\\\\\"\\\n"z"#;
+        assert_eq!(detect(orig, 0),  0);  // a"\0\\\\\"\\\n"
+        assert_eq!(detect(orig, 1),  15); // "\0\\\\\"\\\n"z
+        assert_eq!(detect(orig, 2),  2);  // \0\\\\\"\\\n"z
+        assert_eq!(detect(orig, 9),  15); // "\\\n"z no ‘lookbehind’s!
+        assert_eq!(detect(orig, 14), 14); // "z not a string, has no end
         // Correct escapes, raw string.
         assert_eq!(detect("r\"\\0\\n\\t\"", 0), 9); // r"\0\n\t"
     }
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn detect_string_will_not_panic() {
-        // Near the end of the `raw` input code.
+        // Near the end of the `orig` input code.
         assert_eq!(detect("", 0), 0);               // empty string
         assert_eq!(detect("\"", 0), 0);             // "
         assert_eq!(detect("\"a", 0), 0);            // "a

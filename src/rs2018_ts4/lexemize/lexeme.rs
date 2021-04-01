@@ -43,7 +43,7 @@ impl LexemeKind {
 pub struct Lexeme {
     /// Category of the Lexeme.
     pub kind: LexemeKind,
-    /// The position that the Lexeme starts, relative to the start of `raw`.
+    /// The position that the Lexeme starts, relative to the start of `orig`.
     /// Zero indexed.
     pub pos: usize,
     /// 

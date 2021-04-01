@@ -7,24 +7,24 @@
 /// internals.rust-lang.org/t/do-we-need-unicode-whitespace/9876
 /// 
 /// ### Arguments
-/// * `raw` The original Rust code, assumed to conform to the 2018 edition
-/// * `pos` The character position in `raw` to look at
+/// * `orig` The original Rust code, assumed to conform to the 2018 edition
+/// * `pos` The character position in `orig` to look at
 /// 
 /// ### Returns
 /// If `pos` begins a sequence of whitespace characters, `detect_whitespace()`
 /// returns the character position after that sequence ends.  
 /// Otherwise, `detect_whitespace()` just returns the `pos` argument.
-pub fn detect_whitespace(raw: &str, pos: usize) -> usize {
-    // If the current char is past the last char in `raw`, or `pos` is not on
+pub fn detect_whitespace(orig: &str, pos: usize) -> usize {
+    // If the current char is past the last char in `orig`, or `pos` is not on
     // a character boundary, bail out! The char boundary test avoids a potential
-    // panic if `&raw[i..j]` is reached, below.
-    let len = raw.len();
-    if pos >= len || !raw.is_char_boundary(pos) { return pos }
+    // panic if `&orig[i..j]` is reached, below.
+    let len = orig.len();
+    if pos >= len || !orig.is_char_boundary(pos) { return pos }
     // Step through each byte-position, from `pos` to the end of the input code.
     let mut i = pos;
     while i < len {
         // Get the current character if it’s ascii, or get "~" if it’s not.
-        let c = get_aot(raw, i);
+        let c = get_aot(orig, i);
         // Jump to the next char if this is ascii whitespace.
         if c == " "        // U+0020  UTF-8 20        "Space"
         || c == "\n"       // U+000A  UTF-8 0A        "New Line" or "Line Feed"
@@ -39,8 +39,8 @@ pub fn detect_whitespace(raw: &str, pos: usize) -> usize {
         if i >= len - 1 { return i }
         // Get the next character.
         let mut j = i + 1;
-        while !raw.is_char_boundary(j) { j += 1 }
-        let c = &raw[i..j];
+        while !orig.is_char_boundary(j) { j += 1 }
+        let c = &orig[i..j];
         // End the loop if we encountered a literal tilde.
         if c == "~" { return i }
         // Jump to the next char if this is non-ascii Pattern_White_Space.
@@ -58,7 +58,7 @@ pub fn detect_whitespace(raw: &str, pos: usize) -> usize {
 }
 
 // Returns the ascii character at a position, or tilde if invalid or non-ascii.
-fn get_aot(raw: &str, pos: usize) -> &str { raw.get(pos..pos+1).unwrap_or("~") }
+fn get_aot(orig: &str, p: usize) -> &str { orig.get(p..p+1).unwrap_or("~") }
 
 
 #[cfg(test)]
@@ -68,12 +68,12 @@ mod tests {
     #[test]
     fn detect_whitespace_correct() {
         // Typical.
-        let raw = "~abc \t\nxyz~";
-        assert_eq!(detect(raw, 3), 3); // c
-        assert_eq!(detect(raw, 4), 7); // <SP><TB><NL> advance three spaces
-        assert_eq!(detect(raw, 5), 7); // <TB><NL> advance two spaces
-        assert_eq!(detect(raw, 6), 7); // <NL> advance one space
-        assert_eq!(detect(raw, 7), 7); // xyz~
+        let orig = "~abc \t\nxyz~";
+        assert_eq!(detect(orig, 3), 3); // c
+        assert_eq!(detect(orig, 4), 7); // <SP><TB><NL> advance three spaces
+        assert_eq!(detect(orig, 5), 7); // <TB><NL> advance two spaces
+        assert_eq!(detect(orig, 6), 7); // <NL> advance one space
+        assert_eq!(detect(orig, 7), 7); // xyz~
 
         // Exhaustive.
         //doc.rust-lang.org/reference/whitespace.html
@@ -90,24 +90,24 @@ mod tests {
         assert_eq!(detect("\u{200F}", 0), 3); // right-to-left
         assert_eq!(detect("\u{2028}", 0), 3); // line separator
         assert_eq!(detect("\u{2029}", 0), 3); // just paragraph separator
-        let raw = "\u{0000}\u{0009}\u{000A}\u{000B}\u{000C}\u{000D}\u{0020}\u{0085}";
-        assert_eq!(detect(raw, 0), 0); // null is not whitespace
-        assert_eq!(detect(raw, 1), 9); // "next line" is two bytes
-        let raw = "\u{00A0}\u{200E}\u{200F}\u{2028}\u{2029}";
-        assert_eq!(detect(raw, 0), 0); // NBSP is not whitespace
-        assert_eq!(detect(raw, 2), 14); // 2 + (4 * 3)
+        let orig = "\u{0000}\u{0009}\u{000A}\u{000B}\u{000C}\u{000D}\u{0020}\u{0085}";
+        assert_eq!(detect(orig, 0), 0); // null is not whitespace
+        assert_eq!(detect(orig, 1), 9); // "next line" is two bytes
+        let orig = "\u{00A0}\u{200E}\u{200F}\u{2028}\u{2029}";
+        assert_eq!(detect(orig, 0), 0); // NBSP is not whitespace
+        assert_eq!(detect(orig, 2), 14); // 2 + (4 * 3)
 
         // Ends with newline.
-        let raw = "xyz~ \n";
-        assert_eq!(detect(raw, 2), 2); // z~ <NL>
-        assert_eq!(detect(raw, 3), 3); // ~ <NL>
-        assert_eq!(detect(raw, 4), 6); //  <NL> advance to eoi
-        assert_eq!(detect(raw, 5), 6); // <NL> advance to eoi
+        let orig = "xyz~ \n";
+        assert_eq!(detect(orig, 2), 2); // z~ <NL>
+        assert_eq!(detect(orig, 3), 3); // ~ <NL>
+        assert_eq!(detect(orig, 4), 6); //  <NL> advance to eoi
+        assert_eq!(detect(orig, 5), 6); // <NL> advance to eoi
     }
 
     #[test]
     fn detect_whitespace_will_not_panic() {
-        // Near the end of `raw` input code.
+        // Near the end of `orig` input code.
         assert_eq!(detect("", 0), 0); // empty string
         assert_eq!(detect("~", 0), 0); // ~
         assert_eq!(detect("\n", 0), 1); // <NL>
@@ -116,8 +116,8 @@ mod tests {
         assert_eq!(detect("abc", 3), 3); // 3 is after "c", so incorrect
         assert_eq!(detect("abc", 4), 4); // 4 is out of range
         assert_eq!(detect("abc", 100), 100); // 100 is way out of range
-        let raw = "\u{00A0}\u{200E}\u{200F}\u{2028}\u{2029}";
-        assert_eq!(detect(raw, 1), 1); // `pos` halfway through NBSP
+        let orig = "\u{00A0}\u{200E}\u{200F}\u{2028}\u{2029}";
+        assert_eq!(detect(orig, 1), 1); // `pos` halfway through NBSP
         // Non-ascii.
         assert_eq!(detect("€", 1), 1); // part way through the three eurobytes
         assert_eq!(detect(" €", 0), 1); // non-ascii after space

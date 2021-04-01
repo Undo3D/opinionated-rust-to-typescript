@@ -5,19 +5,19 @@
 /// @TODO raw identifiers, which have the `r#` prefix
 /// 
 /// ### Arguments
-/// * `raw` The original Rust code, assumed to conform to the 2018 edition
-/// * `pos` The character position in `raw` to look at
+/// * `orig` The original Rust code, assumed to conform to the 2018 edition
+/// * `pos` The character position in `orig` to look at
 /// 
 /// ### Returns
 /// If `pos` begins a valid looking identifier, `detect_identifier()`
 /// returns the character position after the identifier ends.  
 /// Otherwise, `detect_identifier()` just returns the `pos` argument.
-pub fn detect_identifier(raw: &str, pos: usize) -> usize {
-    // If the current char is past the last char in `raw`, bail out!
-    let len = raw.len();
+pub fn detect_identifier(orig: &str, pos: usize) -> usize {
+    // If the current char is past the last char in `orig`, bail out!
+    let len = orig.len();
     if pos >= len { return pos }
     // If the current char is not [_a-zA-Z], it does not begin an identifier.
-    let c = get_aot(raw, pos);
+    let c = get_aot(orig, pos);
     let starts_u = c == "_"; // true if the current char is an underscore
     if ! starts_u && ! c.chars().all(char::is_alphabetic) { return pos }
     // If the current char is the last in the input code:
@@ -26,14 +26,14 @@ pub fn detect_identifier(raw: &str, pos: usize) -> usize {
         return if starts_u { pos } else { len }
     }
     // If the next char is not an underscore, letter or digit:
-    let c = raw.get(pos+1..pos+2).unwrap_or("/");
+    let c = orig.get(pos+1..pos+2).unwrap_or("/");
     if c != "_" && ! c.chars().all(char::is_alphanumeric) {
         // A lone "_" is not an identifier. Else, advance after the first char.
         return if starts_u { pos } else { pos + 1 }
     }
     // Step through each char, from `pos` to the end of the input code.
     for i in pos+2..len-1 {
-        let c = get_aot(raw, i);
+        let c = get_aot(orig, i);
         // If this char is not an underscore, letter or digit, advance to here.
         if c != "_" && ! c.chars().all(char::is_alphanumeric) { return i }
     }
@@ -42,7 +42,7 @@ pub fn detect_identifier(raw: &str, pos: usize) -> usize {
 }
 
 // Returns the ascii character at a position, or tilde if invalid or non-ascii.
-fn get_aot(raw: &str, pos: usize) -> &str { raw.get(pos..pos+1).unwrap_or("~") }
+fn get_aot(orig: &str, p: usize) -> &str { orig.get(p..p+1).unwrap_or("~") }
 
 
 #[cfg(test)]
@@ -51,33 +51,33 @@ mod tests {
     
     #[test]
     fn detect_identifier_correct() {
-        let raw = "abc^_def,G_h__1_; _123e+__ X2 Y Z";
-        assert_eq!(detect(raw, 0), 3);   // abc
-        assert_eq!(detect(raw, 1), 3);   // bc
-        assert_eq!(detect(raw, 2), 3);   // c
-        assert_eq!(detect(raw, 3), 3);   // ^ is invalid in identifiers
-        assert_eq!(detect(raw, 4), 8);   // _def
-        assert_eq!(detect(raw, 8), 8);   // , is invalid in identifiers
-        assert_eq!(detect(raw, 9), 16);  // G_h__1_
-        assert_eq!(detect(raw, 18), 23); // _123e
-        assert_eq!(detect(raw, 24), 26); // __
-        assert_eq!(detect(raw, 27), 29); // X2
-        assert_eq!(detect(raw, 30), 31); // Y
-        assert_eq!(detect(raw, 32), 33); // Z
+        let orig = "abc^_def,G_h__1_; _123e+__ X2 Y Z";
+        assert_eq!(detect(orig, 0), 3);   // abc
+        assert_eq!(detect(orig, 1), 3);   // bc
+        assert_eq!(detect(orig, 2), 3);   // c
+        assert_eq!(detect(orig, 3), 3);   // ^ is invalid in identifiers
+        assert_eq!(detect(orig, 4), 8);   // _def
+        assert_eq!(detect(orig, 8), 8);   // , is invalid in identifiers
+        assert_eq!(detect(orig, 9), 16);  // G_h__1_
+        assert_eq!(detect(orig, 18), 23); // _123e
+        assert_eq!(detect(orig, 24), 26); // __
+        assert_eq!(detect(orig, 27), 29); // X2
+        assert_eq!(detect(orig, 30), 31); // Y
+        assert_eq!(detect(orig, 32), 33); // Z
     }
 
     #[test]
     fn detect_identifier_incorrect() {
         // Here, each lone "_" exercises a different conditional branch.
-        let raw = "_ 2X _";
-        assert_eq!(detect(raw, 0), 0); // _ cannot be the only char
-        assert_eq!(detect(raw, 2), 2); // 2X is not a valid identifier
-        assert_eq!(detect(raw, 5), 5); // _ cannot be the only char
+        let orig = "_ 2X _";
+        assert_eq!(detect(orig, 0), 0); // _ cannot be the only char
+        assert_eq!(detect(orig, 2), 2); // 2X is not a valid identifier
+        assert_eq!(detect(orig, 5), 5); // _ cannot be the only char
     }
 
     #[test]
     fn detect_identifier_will_not_panic() {
-        // Near the end of `raw`.
+        // Near the end of `orig`.
         assert_eq!(detect("", 0), 0); // empty string
         assert_eq!(detect("'", 0), 0); // '
         assert_eq!(detect("'a", 0), 0); // 'a
